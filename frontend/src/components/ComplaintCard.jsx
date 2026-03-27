@@ -67,28 +67,59 @@ export default function ComplaintCard({ report, isAdmin = false, onStatusChange,
 
         {/* Metadata row */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-          {report.waste_type && (
+          {/* AI Analysis Results */}
+          {report.ai_analysis && (
+            <>
+              {report.ai_analysis.waste_type && (
+                <span className="flex items-center gap-1">
+                  <span className="text-[#104080] font-medium">🤖 Type:</span>
+                  <span className="capitalize">{report.ai_analysis.waste_type}</span>
+                </span>
+              )}
+              {report.ai_analysis.severity_score != null && (
+                <span className="flex items-center gap-1">
+                  <span className="text-[#104080] font-medium">🔍 Score:</span>
+                  <span>{report.ai_analysis.severity_score}/10</span>
+                </span>
+              )}
+              {report.ai_analysis.urgency_level && (
+                <span className="flex items-center gap-1">
+                  <span className="text-[#104080] font-medium">⚡ Urgency:</span>
+                  <span className={`capitalize px-2 py-0.5 rounded text-white text-xs font-semibold ${
+                    report.ai_analysis.urgency_level === 'critical' ? 'bg-red-500' :
+                    report.ai_analysis.urgency_level === 'high' ? 'bg-orange-500' :
+                    report.ai_analysis.urgency_level === 'medium' ? 'bg-yellow-500' :
+                    'bg-green-500'
+                  }`}>
+                    {report.ai_analysis.urgency_level}
+                  </span>
+                </span>
+              )}
+            </>
+          )}
+          {/* Fallback to old format */}
+          {!report.ai_analysis && report.waste_type && (
             <span className="flex items-center gap-1">
               <span className="text-[#104080] font-medium">Type:</span>
               <span className="capitalize">{report.waste_type}</span>
             </span>
           )}
-          {report.severity_score != null && (
+          {!report.ai_analysis && report.severity_score != null && (
             <span className="flex items-center gap-1">
               <span className="text-[#104080] font-medium">Severity:</span>
               <span>{report.severity_score}/10</span>
             </span>
           )}
-          {report.metadata?.latitude && (
-            <span title={`${report.metadata.latitude}, ${report.metadata.longitude}`}
+          {report.location?.lat && (
+            <span title={`${report.location.lat}, ${report.location.lng}`}
               className="flex items-center gap-1">
               <HiMapPin className="w-3.5 h-3.5 text-[#104080]" aria-hidden="true" />
-              <span>{Number(report.metadata.latitude).toFixed(4)}, {Number(report.metadata.longitude).toFixed(4)}</span>
+              <span>{Number(report.location.lat).toFixed(4)}, {Number(report.location.lng).toFixed(4)}</span>
             </span>
           )}
           <span className="flex items-center gap-1">
             <HiCalendar className="w-3.5 h-3.5 text-[#104080]" aria-hidden="true" />
-            <span>{formatDate(report.created_at ?? report.timestamp)}</span>
+            <span>{formatDate(report.created_at ?? report.createdAt ?? report.timestamp)}</span>
           </span>
           {report.assigned_to && (
             <span className="flex items-center gap-1">

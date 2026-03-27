@@ -5,7 +5,7 @@ import { AppConfig } from '@/lib/types';
 
 const ONE_MINUTE_IN_MILLISECONDS = 60 * 1000;
 
-export default function useConnectionDetails(appConfig: AppConfig) {
+export default function useConnectionDetails(appConfig: AppConfig, language: string = 'en') {
   // Generate room connection details, including:
   //   - A random Room name
   //   - A random Participant name
@@ -33,6 +33,7 @@ export default function useConnectionDetails(appConfig: AppConfig) {
           'X-Sandbox-Id': appConfig.sandboxId ?? '',
         },
         body: JSON.stringify({
+          language: language,
           room_config: appConfig.agentName
             ? {
                 agents: [{ agent_name: appConfig.agentName }],
@@ -48,7 +49,7 @@ export default function useConnectionDetails(appConfig: AppConfig) {
 
     setConnectionDetails(data);
     return data;
-  }, []);
+  }, [appConfig.agentName, appConfig.sandboxId, language]);
 
   useEffect(() => {
     fetchConnectionDetails();

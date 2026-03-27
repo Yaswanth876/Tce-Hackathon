@@ -9,7 +9,6 @@
 // Wrong-role users      → their correct dashboard
 // ---------------------------------------------------------------
 
-import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 function FullSpinner() {
@@ -28,22 +27,22 @@ function FullSpinner() {
 }
 
 export default function ProtectedRoute({ children, role }) {
-  const { user, userDoc, loading } = useAuth()
+  const { user, userDoc, loading, autoSignInForRole } = useAuth()
 
   if (loading) return <FullSpinner />
 
   // Unauthenticated — send to the correct login page for the requested role
   if (!user) {
-    return <Navigate to={role === 'admin' ? '/admin' : '/login'} replace />
+    autoSignInForRole(role === 'admin' ? 'municipality' : 'citizen')
+    return <FullSpinner />
   }
 
   // userDoc may still be loading/null if Firestore was slow — treat as loading
   if (!userDoc) return <FullSpinner />
 
   if (role && userDoc.role !== role) {
-    // Send to the correct dashboard for their actual role
-    const adminRoles = ['admin', 'municipality']
-    return <Navigate to={adminRoles.includes(userDoc.role) ? '/admin/dashboard' : '/citizen'} replace />
+    autoSignInForRole(role === 'admin' ? 'municipality' : 'citizen')
+    return <FullSpinner />
   }
 
   return children

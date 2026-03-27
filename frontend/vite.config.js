@@ -46,7 +46,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB — allows large images like before/after photos
         // SPA: serve index.html for all navigation routes (React Router handles them client-side)
         navigateFallback: '/index.html',
-        navigateFallbackAllowlist: [/^(?!\/__)/],
+        navigateFallbackDenylist: [/^\/api\//i, /^\/__\//i],
       },
 
       // Dev options — serve the manifest in dev so the browser doesn't

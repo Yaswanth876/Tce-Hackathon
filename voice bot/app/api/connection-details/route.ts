@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     // Parse agent configuration from request body
     const body = await req.json();
     const agentName: string = body?.room_config?.agents?.[0]?.agent_name;
+    const language: string = body?.language || 'en'; // Get language from request, default to English
 
     // Generate participant token
     const participantName = 'user';
@@ -41,7 +42,8 @@ export async function POST(req: Request) {
     const participantToken = await createParticipantToken(
       { identity: participantIdentity, name: participantName },
       roomName,
-      agentName
+      agentName,
+      language
     );
 
     // Return connection details
@@ -66,7 +68,8 @@ export async function POST(req: Request) {
 function createParticipantToken(
   userInfo: AccessTokenOptions,
   roomName: string,
-  agentName?: string
+  agentName?: string,
+  language?: string
 ): Promise<string> {
   const at = new AccessToken(API_KEY, API_SECRET, {
     ...userInfo,
@@ -82,9 +85,12 @@ function createParticipantToken(
   at.addGrant(grant);
 
   if (agentName) {
-    at.roomConfig = new RoomConfiguration({
+    const roomConfig = new RoomConfiguration({
       agents: [{ agentName }],
+      // Pass language as metadata to the agent
+      metadata: JSON.stringify({ language: language || 'en' }),
     });
+    at.roomConfig = roomConfig;
   }
 
   return at.toJwt();

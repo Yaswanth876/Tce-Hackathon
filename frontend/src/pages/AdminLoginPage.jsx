@@ -8,11 +8,10 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API
-// import { signInWithEmailAndPassword } from 'firebase/auth'
-// import { doc, getDoc } from 'firebase/firestore'
-// import { auth, db } from '../firebase'
+import { signInWithEmailAndPassword, doc, getDoc, auth, db, signOut } from '../localDb'
 import { HiLockClosed, HiExclamationTriangle } from 'react-icons/hi2'
+
+const ADMIN_ROLES = ['admin', 'municipality']
 
 function ShieldIcon() {
   return (
@@ -55,21 +54,33 @@ export default function AdminLoginPage() {
       const snap = await getDoc(doc(db, 'users', cred.user.uid))
 
       if (!snap.exists()) {
-        await auth.signOut()
+        await signOut()
         throw new Error('no-profile')
       }
 
-      if (snap.data().role !== 'admin') {
-        await auth.signOut()
+      if (!ADMIN_ROLES.includes(snap.data().role)) {
+        await signOut()
         throw new Error('not-admin')
       }
 
-      navigate('/admin', { replace: true })
+      navigate('/admin/dashboard', { replace: true })
     } catch (err) {
       setError(friendlyError(err.code ?? err.message))
     } finally {
       setLoading(false)
     }
+  }
+
+  function friendlyError(code) {
+    const map = {
+      'auth/user-not-found':         'No account found for this email address.',
+      'auth/wrong-password':         'Incorrect password. Please try again.',
+      'auth/invalid-credential':     'Invalid credentials. Please verify and retry.',
+      'auth/invalid-email':          'Please enter a valid email address.',
+      'no-profile':                  'User profile not found.',
+      'not-admin':                   'Access restricted to Municipal Officers only.',
+    }
+    return map[code] || code || 'An unexpected error occurred. Please try again.'
   }
 
   const inputCls = `w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm

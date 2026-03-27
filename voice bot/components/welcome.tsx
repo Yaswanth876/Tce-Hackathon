@@ -1,5 +1,10 @@
+'use client';
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { useLanguage } from '@/context/LanguageContext';
+import { getTranslation } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 
 interface WelcomeProps {
@@ -14,6 +19,9 @@ export const Welcome = ({
   onStartCall,
   ref,
 }: React.ComponentProps<'div'> & WelcomeProps) => {
+  const { language } = useLanguage();
+  const t = getTranslation(language);
+
   return (
     <>
       {/* Main Content */}
@@ -28,11 +36,17 @@ export const Welcome = ({
         )}
       >
         <div className="mx-auto max-h-[80vh] w-full max-w-5xl space-y-6 overflow-y-auto sm:space-y-8 md:space-y-10">
+          {/* Language Selector - Top Right */}
+          <div className="sticky top-0 z-20 flex justify-between items-center bg-white/90 py-2 backdrop-blur-sm px-2">
+            <div />
+            <LanguageSelector />
+          </div>
+
           {/* Logo - Always visible */}
-          <div className="sticky top-0 z-10 flex justify-center bg-white/90 py-2 backdrop-blur-sm">
+          <div className="flex justify-center">
             <Image
               src="/android-chrome-192x192.png"
-              alt="Aqro Intelligence Logo"
+              alt={t.welcome.companyName}
               width={96}
               height={96}
               className="h-16 w-16 rounded-xl border-2 border-blue-300 shadow-md sm:h-20 sm:w-20 md:h-24 md:w-24"
@@ -43,29 +57,29 @@ export const Welcome = ({
           {/* Brand Title */}
           <div className="space-y-3">
             <h1 className="text-[clamp(2rem,4vw,3.5rem)] font-extrabold text-black">
-              Aqro Intelligence
+              {t.welcome.title}
             </h1>
             <p className="mx-auto max-w-lg text-[clamp(0.9rem,2vw,1.25rem)] leading-relaxed text-gray-700">
-              Voice Bot for Madurai Citizens - Report Civic Complaints
+              {t.welcome.subtitle}
             </p>
           </div>
 
           {/* Description + Instructions */}
           <div className="space-y-4">
             <p className="mx-auto max-w-2xl text-sm font-medium text-gray-700 sm:text-base">
-              Help keep Madurai clean - Report complaints easily with AI-powered voice assistance
+              {t.welcome.description}
             </p>
 
             <div className="mx-auto max-w-2xl rounded-xl border-2 border-blue-200 bg-white p-4 text-left shadow-sm sm:p-6">
               <h3 className="mb-3 text-base font-semibold text-black sm:text-lg">
-                Getting Started:
+                {t.welcome.gettingStarted}
               </h3>
               <ul className="space-y-2 text-sm text-black sm:text-base">
                 {[
-                  'Click the "Connect" button to begin your conversation',
-                  'Allow microphone access when prompted',
-                  'Report civic issues like garbage, potholes, or drainage problems',
-                  'Get instant confirmation and tracking for your complaints',
+                  t.welcome.steps.step1,
+                  t.welcome.steps.step2,
+                  t.welcome.steps.step3,
+                  t.welcome.steps.step4,
                 ].map((step, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="flex h-5 w-5 min-w-[1.2rem] items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
@@ -82,21 +96,9 @@ export const Welcome = ({
           <div className="mx-auto w-full max-w-4xl">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                {
-                  icon: '🚮',
-                  title: 'Garbage Collection',
-                  desc: 'Report uncollected garbage and waste management issues',
-                },
-                {
-                  icon: '🛣️',
-                  title: 'Road & Infrastructure',
-                  desc: 'Report potholes, streetlight issues, and road damage',
-                },
-                {
-                  icon: '💧',
-                  title: 'Water & Drainage',
-                  desc: 'Report water leakage, drainage blocks, and flooding',
-                },
+                t.welcome.features.garbage,
+                t.welcome.features.road,
+                t.welcome.features.water,
               ].map((f, i) => (
                 <div
                   key={i}
@@ -113,7 +115,7 @@ export const Welcome = ({
           {/* Footer */}
           <footer className="mt-8 pb-24">
             <p className="text-center text-xs text-gray-500 sm:text-sm">
-              Powered by Aqro Intelligence • Helping Madurai Stay Clean
+              {t.welcome.footerText}
             </p>
           </footer>
         </div>
@@ -137,7 +139,7 @@ export const Welcome = ({
                 'relative z-[10000]'
               )}
             >
-              {startButtonText}
+              {t.welcome.startButtonText}
             </Button>
           </div>
         </div>

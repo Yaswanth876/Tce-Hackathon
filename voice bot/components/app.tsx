@@ -8,6 +8,8 @@ import { toastAlert } from '@/components/alert-toast';
 import { SessionView } from '@/components/session-view';
 import { Toaster } from '@/components/ui/sonner';
 import { Welcome } from '@/components/welcome';
+import { useLanguage } from '@/context/LanguageContext';
+import { getTranslation } from '@/lib/translations';
 import useConnectionDetails from '@/hooks/useConnectionDetails';
 import type { AppConfig } from '@/lib/types';
 
@@ -21,8 +23,10 @@ interface AppProps {
 export function App({ appConfig }: AppProps) {
   const room = useMemo(() => new Room(), []);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const { language } = useLanguage();
+  const t = getTranslation(language);
   const { refreshConnectionDetails, existingOrRefreshConnectionDetails } =
-    useConnectionDetails(appConfig);
+    useConnectionDetails(appConfig, language);
 
   useEffect(() => {
     const onDisconnected = () => {
@@ -31,7 +35,7 @@ export function App({ appConfig }: AppProps) {
     };
     const onMediaDevicesError = (error: Error) => {
       toastAlert({
-        title: 'Encountered an error with your media devices',
+        title: t.session.mediaDeviceError,
         description: `${error.name}: ${error.message}`,
       });
     };
@@ -41,7 +45,7 @@ export function App({ appConfig }: AppProps) {
       room.off(RoomEvent.Disconnected, onDisconnected);
       room.off(RoomEvent.MediaDevicesError, onMediaDevicesError);
     };
-  }, [room, refreshConnectionDetails]);
+  }, [room, refreshConnectionDetails, t]);
 
   useEffect(() => {
     let aborted = false;
@@ -64,7 +68,7 @@ export function App({ appConfig }: AppProps) {
         }
 
         toastAlert({
-          title: 'There was an error connecting to the agent',
+          title: t.session.connectionError,
           description: `${error.name}: ${error.message}`,
         });
       });
@@ -78,6 +82,7 @@ export function App({ appConfig }: AppProps) {
     sessionStarted,
     appConfig.isPreConnectBufferEnabled,
     existingOrRefreshConnectionDetails,
+    t,
   ]);
 
   const { startButtonText } = appConfig;
@@ -96,7 +101,7 @@ export function App({ appConfig }: AppProps) {
 
       <RoomContext.Provider value={room}>
         <RoomAudioRenderer />
-        <StartAudio label="Start Audio" />
+        <StartAudio label={t.controls.startAudio} />
         {/* --- */}
         <MotionSessionView
           key="session-view"

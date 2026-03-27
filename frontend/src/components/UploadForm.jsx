@@ -65,6 +65,7 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
     const [uploadStatus, setUploadStatus] = useState('idle')
     const [uploadProgress, setUploadProgress] = useState(0)
     const [createdId, setCreatedId] = useState(null)
+    const [analysisResult, setAnalysisResult] = useState(null)
 
     const [fileError, setFileError] = useState('')
     const [geoError, setGeoError] = useState('')
@@ -133,6 +134,7 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setSubmitError('')
+        setAnalysisResult(null)
 
         if (!imageFile) { setSubmitError('Please upload an image.'); return }
         if (!coords) { setSubmitError('Please capture your location before submitting.'); return }
@@ -147,20 +149,28 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
             const response = await createComplaint({
                 title: 'Image Report',
                 description: 'Image-based complaint report',
-                imageUrl: preview,
+                imageFile: imageFile, // Send the actual file for backend processing
                 location: {
                     lat: coords.latitude,
                     lng: coords.longitude,
                     address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
                 },
-                severity: 'medium',
-                category: 'other',
+                severity: 5,
+                category: 'mixed',
+                createdBy: createdBy || 'citizen',
             })
 
+            const complaint = response?.data?.complaint
+                ?? response?.data?.data
+                ?? response?.data
+                ?? {}
+            const ai = complaint?.ai_analysis ?? response?.data?.ai_analysis ?? null
+
             setUploadProgress(100)
-            setCreatedId(response.data._id)
+            setCreatedId(complaint?._id ?? complaint?.id ?? response?.data?._id ?? null)
+            setAnalysisResult(ai)
             setUploadStatus('done')
-            onSuccess?.({ complaintId: response.data._id, coords })
+            onSuccess?.({ complaintId: complaint?._id ?? complaint?.id ?? response?.data?._id, coords, aiAnalysis: ai })
 
         } catch (err) {
             console.error('[UploadForm] submission error:', err)
@@ -180,64 +190,10 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
         setCoords(null); setGeoStatus('idle'); setGeoError('')
         setUploadStatus('idle'); setUploadProgress(0)
         setCreatedId(null); setSubmitError('')
+        setAnalysisResult(null)
     }
 
     const isUploading = uploadStatus !== 'idle' && uploadStatus !== 'done' && uploadStatus !== 'error'
-
-    // ── Success screen ─────────────────────────────────────────────
-    if (uploadStatus === 'done') {
-        return (
-            <div className="max-w-xl mx-auto px-4 sm:px-6 py-10">
-                <div className="gov-card overflow-hidden">
-                    <div className="section-header">Complaint Submitted — Acknowledgement</div>
-                    <div className="p-8 flex flex-col items-center text-center gap-6">
-
-                        <div className="w-20 h-20 rounded-full bg-[#F0FDF4] border-4 border-[var(--color-tri-green)] flex items-center justify-center">
-                            <svg className="w-10 h-10 text-[var(--color-tri-green)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-
-                        <div>
-                            <h2 className="text-xl font-bold" style={{ color: 'var(--color-gov-900)' }}>
-                                Complaint Registered Successfully
-                            </h2>
-                            <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
-                                Your complaint has been saved to MongoDB database.
-                            </p>
-                        </div>
-
-                        {preview && (
-                            <img src={preview} alt="Uploaded" className="w-full max-h-48 object-cover rounded border border-[var(--color-border)]" />
-                        )}
-
-                        <div className="bg-[var(--color-gov-50)] border border-[var(--color-gov-100)] rounded-md px-6 py-4 w-full text-left space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Complaint ID</span>
-                                <span className="font-mono text-xs break-all" style={{ color: 'var(--color-gov-800)' }}>{createdId}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Latitude</span>
-                                <span className="font-mono" style={{ color: 'var(--color-gov-800)' }}>{coords?.latitude?.toFixed(6)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Longitude</span>
-                                <span className="font-mono" style={{ color: 'var(--color-gov-800)' }}>{coords?.longitude?.toFixed(6)}</span>
-                            </div>
-                        </div>
-
-                        <div className="gov-alert-success w-full text-left text-sm">
-                            ✅ Report saved. API endpoint: {API_BASE_URL}/complaints/{createdId}
-                        </div>
-
-                        <button onClick={handleReset} className="btn-gov">
-                            Submit Another Report
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )
-    }
 
     // ── Upload form ────────────────────────────────────────────────
     return (
@@ -377,6 +333,47 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
                             <button type="button" onClick={handleReset} className="btn-gov-outline">Clear</button>
                         )}
                     </div>
+
+                    {/* Inline post-submit result (shown right after submit button) */}
+                    {uploadStatus === 'done' && (
+                        <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--color-gov-200)', background: 'var(--color-gov-50)' }}>
+                            <div className="gov-alert-success text-sm">
+                                ✅ Complaint submitted successfully. Reference: {createdId}
+                            </div>
+
+                            {analysisResult ? (
+                                <div className="rounded-md border p-3 bg-white space-y-2" style={{ borderColor: 'var(--color-border)' }}>
+                                    <p className="text-sm font-bold" style={{ color: 'var(--color-gov-800)' }}>Gemini Image Analysis</p>
+                                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span style={{ color: 'var(--color-muted)' }} className="font-medium">Waste Type: </span>
+                                            <span className="capitalize" style={{ color: 'var(--color-gov-800)' }}>{analysisResult.waste_type ?? 'mixed'}</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ color: 'var(--color-muted)' }} className="font-medium">Severity: </span>
+                                            <span style={{ color: 'var(--color-gov-800)' }}>{analysisResult.severity_score ?? 5}/10</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ color: 'var(--color-muted)' }} className="font-medium">Urgency: </span>
+                                            <span className="capitalize" style={{ color: 'var(--color-gov-800)' }}>{analysisResult.urgency_level ?? 'medium'}</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ color: 'var(--color-muted)' }} className="font-medium">Cleanup Priority: </span>
+                                            <span className="capitalize" style={{ color: 'var(--color-gov-800)' }}>{analysisResult.cleanup_priority ?? 'medium'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                                    Gemini analysis is being processed. It will appear in your complaint card once available.
+                                </p>
+                            )}
+
+                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                                API endpoint: {API_BASE_URL}/complaints/{createdId}
+                            </p>
+                        </div>
+                    )}
 
                 </form>
             </div>

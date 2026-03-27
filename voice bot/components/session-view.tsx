@@ -15,6 +15,8 @@ import { ChatMessageView } from '@/components/livekit/chat/chat-message-view';
 import { MediaTiles } from '@/components/livekit/media-tiles';
 import useChatAndTranscription from '@/hooks/useChatAndTranscription';
 import { useDebugMode } from '@/hooks/useDebug';
+import { useLanguage } from '@/context/LanguageContext';
+import { getTranslation } from '@/lib/translations';
 import type { AppConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +40,8 @@ export const SessionView = ({
   const [chatOpen, setChatOpen] = useState(false);
   const { messages, send } = useChatAndTranscription();
   const room = useRoomContext();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
 
   useDebugMode({
     enabled: process.env.NODE_END !== 'production',
@@ -56,13 +60,7 @@ export const SessionView = ({
     });
 
     // Create a message about the image upload
-    const imageMessage = `I've uploaded an image (${file.name}) for analysis. Please examine this agricultural image and provide insights about what you see. Focus on:
-- Crop identification and health assessment
-- Disease or pest detection
-- Soil condition observations  
-- Growth stage analysis
-- Recommendations for improvement
-
+    const imageMessage = `${t.image.uploadPrompt}
 [Image: ${file.name}, Size: ${Math.round(file.size / 1024)}KB]`;
 
     // Send the message with image context
@@ -84,11 +82,11 @@ export const SessionView = ({
         if (!isAgentAvailable(agentState)) {
           const reason =
             agentState === 'connecting'
-              ? 'Agent did not join the room. '
-              : 'Agent connected but did not complete initializing. ';
+              ? t.session.agentNotJoined
+              : t.session.agentNotInitialized;
 
           toastAlert({
-            title: 'Session ended',
+            title: t.session.sessionEnded,
             description: (
               <p className="w-full">
                 {reason}
@@ -98,7 +96,7 @@ export const SessionView = ({
                   href="https://docs.livekit.io/agents/start/voice-ai/"
                   className="whitespace-nowrap underline"
                 >
-                  See quickstart guide
+                  {language === 'en' ? 'See quickstart guide' : 'விரைவ தொடக்க வழிகாட்டிக்கு செல்லுங்கள்'}
                 </a>
                 .
               </p>
@@ -110,7 +108,7 @@ export const SessionView = ({
 
       return () => clearTimeout(timeout);
     }
-  }, [agentState, sessionStarted, room]);
+  }, [agentState, sessionStarted, room, t, language]);
 
   const { supportsChatInput, supportsVideoInput } = appConfig;
   const capabilities = {
@@ -188,7 +186,7 @@ export const SessionView = ({
                 )}
               >
                 <p className="animate-text-shimmer inline-block !bg-clip-text text-sm font-semibold text-transparent">
-                  Agent is listening, ask it a question
+                  {t.session.listening}
                 </p>
               </motion.div>
             )}
