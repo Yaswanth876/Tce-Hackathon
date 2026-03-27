@@ -209,14 +209,6 @@ function HeroSection() {
               <HiCamera className="w-5 h-5" aria-hidden="true" />
               Raise a Complaint
             </HeroButton>
-            <HeroButton to="/daily-report" variant="primary">
-              <HiChartBar className="w-5 h-5" aria-hidden="true" />
-              Daily Report
-            </HeroButton>
-            <HeroButton to="/map" variant="primary">
-              <HiMapPin className="w-5 h-5" aria-hidden="true" />
-              Monitoring Map
-            </HeroButton>
             <ExternalHeroButton href="https://kural.aqro.in/" variant="primary">
               <HiMicrophone className="w-5 h-5" aria-hidden="true" />
               Voice Bot
