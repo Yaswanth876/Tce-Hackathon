@@ -24,9 +24,9 @@ import {
   query,
   collection,
   orderBy,
-  onSnapshot,
   updateDoc,
   doc,
+  setDoc,
   serverTimestamp,
   addDoc,
   getDocs,
@@ -37,6 +37,7 @@ import StatusBadge from '../components/StatusBadge'
 import { HiInboxArrowDown } from 'react-icons/hi2'
 import { awardPointsForClear } from '../utils/pointsService'
 import { awardTeamPointsForClear } from '../utils/teamScoreService'
+import { getComplaints as getApiComplaints } from '../api/complaintService'
 
 const STATUS_TABS = ['all', 'pending', 'analyzing', 'dispatched', 'cleared']
 
@@ -45,6 +46,33 @@ const STATUS_COLORS = {
   analyzing:  { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: 'bg-blue-400'   },
   dispatched: { bg: 'bg-purple-100', text: 'text-purple-800', dot: 'bg-purple-400' },
   cleared:    { bg: 'bg-emerald-100',text: 'text-emerald-800',dot: 'bg-emerald-400' },
+}
+
+function normalizeApiComplaintToReport(item = {}) {
+  const id = String(item.id ?? item._id ?? '')
+  const createdAt = item.created_at ?? item.createdAt ?? new Date().toISOString()
+  const updatedAt = item.updated_at ?? item.updatedAt ?? createdAt
+  const lat = item.lat ?? item.location?.lat ?? null
+  const lng = item.lng ?? item.location?.lng ?? null
+
+  return {
+    id,
+    title: item.title ?? 'Sanitation Complaint',
+    description: item.description ?? '',
+    status: item.status ?? 'pending',
+    category: item.category ?? 'mixed',
+    severity: item.severity ?? 'medium',
+    waste_type: item.ai_analysis?.waste_type ?? item.waste_type ?? item.category ?? 'mixed',
+    image_url: item.image_url ?? item.imageUrl ?? item.imagePath ?? '',
+    location: { lat, lng },
+    address: item.address ?? item.location?.address ?? '',
+    created_at: createdAt,
+    updated_at: updatedAt,
+    created_by: item.createdBy ?? item.created_by ?? 'anonymous',
+    assigned_to: item.assignedTo ?? item.assigned_to ?? '',
+    cleaned_image_url: item.cleaned_image_url ?? '',
+    ai_analysis: item.ai_analysis ?? null,
+  }
 }
 
 function fmt(ts) {
@@ -533,19 +561,78 @@ export default function AdminDashboard() {
   const [selected,    setSelected]    = useState(null)   // currently open report
   const [actionError, setActionError] = useState('')     // permission / network error from actions
 
-  // Real-time feed for ALL reports
-  useEffect(() => {
-    const q = query(collection(db, 'reports'), orderBy('created_at', 'desc'))
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        setComplaints(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-        setLoading(false)
-      },
-      () => setLoading(false),
-    )
-    return unsub
+  const loadReports = useCallback(async () => {
+    const snapshot = await getDocs(query(collection(db, 'reports'), orderBy('created_at', 'desc')))
+    const nextReports = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+    setComplaints(nextReports)
+    setLoading(false)
   }, [])
+
+  const syncReportsFromApi = useCallback(async () => {
+    try {
+      const apiComplaints = await getApiComplaints()
+      if (!Array.isArray(apiComplaints) || apiComplaints.length === 0) {
+        return
+      }
+
+      const existingSnapshot = await getDocs(collection(db, 'reports'))
+      const existingIds = new Set(existingSnapshot.docs.map((d) => String(d.id)))
+
+      const missing = apiComplaints.filter((item) => {
+        const id = String(item.id ?? item._id ?? '')
+        return id && !existingIds.has(id)
+      })
+
+      if (missing.length === 0) {
+        return
+      }
+
+      await Promise.all(
+        missing.map((item) => {
+          const report = normalizeApiComplaintToReport(item)
+          return setDoc(doc(db, 'reports', report.id), report, { merge: true })
+        })
+      )
+    } catch (err) {
+      console.warn('[AdminDashboard] API sync skipped:', err?.message ?? err)
+    }
+  }, [])
+
+  // Load local reports and merge in missing backend complaints.
+  useEffect(() => {
+    let cancelled = false
+
+    async function bootstrap() {
+      setLoading(true)
+      try {
+        await loadReports()
+        await syncReportsFromApi()
+        if (!cancelled) {
+          await loadReports()
+        }
+      } catch {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    bootstrap()
+
+    // Keep dashboard fresh for newly filed backend complaints.
+    const intervalId = setInterval(async () => {
+      if (cancelled) return
+      await syncReportsFromApi()
+      if (!cancelled) {
+        await loadReports()
+      }
+    }, 15000)
+
+    return () => {
+      cancelled = true
+      clearInterval(intervalId)
+    }
+  }, [loadReports, syncReportsFromApi])
 
   // Keep modal in sync with live data
   useEffect(() => {
