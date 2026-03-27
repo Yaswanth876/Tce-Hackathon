@@ -208,6 +208,14 @@ export default function CitizenDashboard() {
               {label}
             </button>
           ))}
+          {/* Monitoring Map button */}
+          <button
+            onClick={() => navigate('/map')}
+            className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors bg-white text-[#104080] border border-slate-300 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <span>🗺️</span>
+            Monitoring Map
+          </button>
           {/* Notifications shortcut */}
           <button
             onClick={() => navigate('/notifications')}

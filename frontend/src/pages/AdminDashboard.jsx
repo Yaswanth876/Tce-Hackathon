@@ -826,6 +826,14 @@ export default function AdminDashboard() {
                        focus:outline-none focus:ring-2 focus:ring-[#104080] placeholder:text-slate-400 transition"
           />
           <button
+            onClick={() => navigate('/map')}
+            className="rounded-lg bg-[#104080] hover:bg-[#0a2240] text-white text-xs font-semibold
+                       px-3 py-1.5 ring-1 ring-[#104080]/40 transition-colors whitespace-nowrap flex items-center gap-1.5"
+          >
+            <span>🗺️</span>
+            Monitoring Map
+          </button>
+          <button
             onClick={() => navigate('/admin/teams-leaderboard')}
             className="rounded-lg bg-[#0a2240] hover:bg-[#104080] text-white text-xs font-semibold
                        px-3 py-1.5 ring-1 ring-[#104080]/40 transition-colors whitespace-nowrap flex items-center gap-1.5"
