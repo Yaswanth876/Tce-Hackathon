@@ -69,6 +69,31 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    cleaned_image_url: {
+      type: String,
+      default: '',
+    },
+    cleared_at: {
+      type: Date,
+      default: null,
+    },
+    notification: {
+      sent: { type: Boolean, default: false },
+      dismissed: { type: Boolean, default: false },
+      sent_at: { type: Date, default: null },
+      dismissed_at: { type: Date, default: null },
+      message: { type: String, default: '' },
+    },
+    citizen_review: {
+      rating: { type: Number, min: 1, max: 5, default: null },
+      comment: { type: String, default: '' },
+      state: {
+        type: String,
+        enum: ['pending', 'submitted'],
+        default: 'pending',
+      },
+      submitted_at: { type: Date, default: null },
+    },
     created_at: {
       type: Date,
       default: Date.now,

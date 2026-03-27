@@ -5,6 +5,7 @@
 // The shape is future-compatible with a MongoDB backend.
 // ---------------------------------------------------------------
 
+<<<<<<< HEAD
 import {
   collection,
   addDoc,
@@ -19,6 +20,15 @@ import {
 
 const PRIMARY_COLLECTION = 'reports'
 const LEGACY_COLLECTION = 'complaints'
+=======
+const STORAGE_KEY = 'aqro_mock_complaints'
+const HEALTH_CHECK_PATH = '/health'
+const BACKEND_RETRY_MS = 30000
+
+let backendState = 'unknown'
+let lastBackendCheckAt = 0
+let loggedOfflineNotice = false
+>>>>>>> 7f7ecc51c79b9cf14acfb5e26abc732a2047776c
 
 function nowIso() {
   return new Date().toISOString()
@@ -138,6 +148,10 @@ export function normalizeComplaint(raw = {}) {
       raw.ai_analysis?.waste_type ??
       'mixed',
     ai_analysis: normalizedAnalysis(raw),
+    cleaned_image_url: raw.cleaned_image_url ?? '',
+    cleared_at: raw.cleared_at ?? null,
+    notification: raw.notification ?? { sent: false, dismissed: false },
+    citizen_review: raw.citizen_review ?? { state: 'pending', rating: null, comment: '' },
   }
 }
 
@@ -173,10 +187,79 @@ export async function getComplaints() {
   }
 }
 
+<<<<<<< HEAD
 /**
  * Create a new complaint in the localDb 'reports' collection.
  * The complaint is immediately available to all dashboards.
  */
+=======
+function writeLocalComplaints(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+function markBackendOffline() {
+  backendState = 'offline'
+  lastBackendCheckAt = Date.now()
+  if (!loggedOfflineNotice) {
+    console.warn('[Aqro] Backend is unreachable. Using local complaint storage fallback.')
+    loggedOfflineNotice = true
+  }
+}
+
+function markBackendOnline() {
+  backendState = 'online'
+  lastBackendCheckAt = Date.now()
+  loggedOfflineNotice = false
+}
+
+async function canReachBackend() {
+  const now = Date.now()
+
+  if (backendState === 'online' && now - lastBackendCheckAt < BACKEND_RETRY_MS) {
+    return true
+  }
+
+  if (backendState === 'offline' && now - lastBackendCheckAt < BACKEND_RETRY_MS) {
+    return false
+  }
+
+  try {
+    await axios.get(`${API_BASE_URL}${HEALTH_CHECK_PATH}`, { timeout: 2500 })
+    markBackendOnline()
+    return true
+  } catch {
+    markBackendOffline()
+    return false
+  }
+}
+
+export async function getComplaints() {
+  const backendAvailable = await canReachBackend()
+  if (!backendAvailable) {
+    return readLocalComplaints()
+  }
+
+  try {
+    const response = await axios.get(`${API_BASE_URL}/complaints`)
+    const payload = response?.data
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.complaints)
+          ? payload.complaints
+          : []
+
+    const normalized = list.map(normalizeComplaint)
+    writeLocalComplaints(normalized)
+    return normalized
+  } catch {
+    markBackendOffline()
+    return readLocalComplaints()
+  }
+}
+
+>>>>>>> 7f7ecc51c79b9cf14acfb5e26abc732a2047776c
 export async function createComplaint(input = {}) {
   const now = serverTimestamp()
   const status = input.status ?? 'pending'
@@ -203,13 +286,56 @@ export async function createComplaint(input = {}) {
     updated_at: now,
   }
 
+  const backendAvailable = await canReachBackend()
+  if (!backendAvailable) {
+    const created = normalizeComplaint({
+      ...body,
+      _id: `mock-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    })
+
+    const local = readLocalComplaints()
+    writeLocalComplaints([created, ...local])
+
+    return {
+      data: {
+        _id: created._id,
+        id: created.id,
+        complaint: created,
+        ai_analysis: created.ai_analysis,
+      },
+    }
+  }
+
   try {
     const result = await addDoc(collection(db, PRIMARY_COLLECTION), complaintData)
     const created = normalizeComplaint({ ...complaintData, id: result.id })
 
     return {
       data: {
+<<<<<<< HEAD
         _id: created.id,
+=======
+        ...(response?.data ?? {}),
+        _id: created._id,
+        id: created.id,
+        complaint: created,
+        ai_analysis: created.ai_analysis,
+      },
+    }
+  } catch (error) {
+    markBackendOffline()
+    const created = normalizeComplaint({
+      ...body,
+      _id: `mock-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    })
+
+    const local = readLocalComplaints()
+    writeLocalComplaints([created, ...local])
+
+    return {
+      data: {
+        _id: created._id,
+>>>>>>> 7f7ecc51c79b9cf14acfb5e26abc732a2047776c
         id: created.id,
         complaint: created,
         ai_analysis: created.ai_analysis,
@@ -226,6 +352,26 @@ export async function createComplaint(input = {}) {
  * Used by admin to change status, assign teams, etc.
  */
 export async function updateComplaint(complaintId, updates = {}) {
+<<<<<<< HEAD
+=======
+  const body = {
+    ...updates,
+    updated_at: nowIso(),
+  }
+
+  const backendAvailable = await canReachBackend()
+  if (!backendAvailable) {
+    const local = readLocalComplaints()
+    const next = local.map((item) =>
+      item.id === complaintId || item._id === complaintId
+        ? normalizeComplaint({ ...item, ...body, id: item.id ?? complaintId, _id: item._id ?? complaintId })
+        : item
+    )
+    writeLocalComplaints(next)
+    return next.find((item) => item.id === complaintId || item._id === complaintId) ?? normalizeComplaint({ id: complaintId, ...body })
+  }
+
+>>>>>>> 7f7ecc51c79b9cf14acfb5e26abc732a2047776c
   try {
     const patch = {
       ...updates,
@@ -234,10 +380,50 @@ export async function updateComplaint(complaintId, updates = {}) {
 
     await updateDoc(doc(db, 'reports', complaintId), patch)
 
+<<<<<<< HEAD
     // Return the merged result
     return normalizeComplaint({ id: complaintId, ...patch })
   } catch (err) {
     console.error('[complaintService] updateComplaint error:', err)
     throw err
+=======
+    return updated
+  } catch {
+    markBackendOffline()
+    const local = readLocalComplaints()
+    const next = local.map((item) =>
+      item.id === complaintId || item._id === complaintId
+        ? normalizeComplaint({ ...item, ...body, id: item.id ?? complaintId, _id: item._id ?? complaintId })
+        : item
+    )
+    writeLocalComplaints(next)
+    return next.find((item) => item.id === complaintId || item._id === complaintId) ?? normalizeComplaint({ id: complaintId, ...body })
+>>>>>>> 7f7ecc51c79b9cf14acfb5e26abc732a2047776c
   }
+}
+
+export async function getCitizenNotifications(userId) {
+  if (!userId) return []
+
+  const response = await axios.get(`${API_BASE_URL}/complaints/notifications/${userId}`)
+  const payload = response?.data
+  const list = Array.isArray(payload?.data) ? payload.data : []
+
+  return list.map((item) => ({
+    ...item,
+    id: item.complaint_id,
+  }))
+}
+
+export async function submitComplaintReview(complaintId, review = {}) {
+  const response = await axios.post(`${API_BASE_URL}/complaints/${complaintId}/review`, {
+    rating: review.rating,
+    comment: review.comment ?? '',
+  })
+
+  return response?.data?.data ?? null
+}
+
+export async function dismissComplaintNotification(complaintId) {
+  await axios.patch(`${API_BASE_URL}/complaints/${complaintId}/notification/dismiss`)
 }

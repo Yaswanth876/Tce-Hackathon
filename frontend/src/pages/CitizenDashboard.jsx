@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, query, where, onSnapshot, signOut, auth, db } from '../localDb'
+import { collection, query, where, onSnapshot, signOut, db } from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import UploadForm from '../components/UploadForm'
 import ComplaintCard from '../components/ComplaintCard'
 import StatusBadge from '../components/StatusBadge'
+import { getCitizenNotifications } from '../api/complaintService'
 
 const STATUS_TABS = ['all', 'pending', 'analyzing', 'dispatched', 'cleared']
 
@@ -131,18 +132,30 @@ export default function CitizenDashboard() {
     return unsub
   }, [user?.uid])
 
-  // Live count of unreviewed notifications — single where to avoid composite index
+  // Fetch unread notification count from backend complaint API
   useEffect(() => {
-    if (!user?.uid) return
-    const q = query(
-      collection(db, 'notifications'),
-      where('user_id', '==', user.uid),
-    )
-    const unsub = onSnapshot(q,
-      snap => setUnreadCount(snap.docs.filter(d => !d.data().review_submitted).length),
-      () => {}
-    )
-    return unsub
+    let alive = true
+
+    async function loadUnread() {
+      if (!user?.uid) {
+        if (alive) setUnreadCount(0)
+        return
+      }
+
+      try {
+        const notifications = await getCitizenNotifications(user.uid)
+        if (alive) {
+          setUnreadCount(notifications.filter(n => !n.review_submitted).length)
+        }
+      } catch {
+        if (alive) setUnreadCount(0)
+      }
+    }
+
+    loadUnread()
+    return () => {
+      alive = false
+    }
   }, [user?.uid])
 
   async function handleSignOut() {
@@ -208,6 +221,14 @@ export default function CitizenDashboard() {
               {label}
             </button>
           ))}
+          {/* Monitoring Map button */}
+          <button
+            onClick={() => navigate('/map')}
+            className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors bg-white text-[#104080] border border-slate-300 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <span>🗺️</span>
+            Monitoring Map
+          </button>
           {/* Notifications shortcut */}
           <button
             onClick={() => navigate('/notifications')}

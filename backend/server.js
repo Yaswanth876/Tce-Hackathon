@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
+import mongoose from 'mongoose'
 import { fileURLToPath } from 'url'
 import connectDB from './config/db.js'
 import complaintRoutes from './routes/complaints.js'
@@ -13,6 +14,10 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = Number(process.env.PORT) || 5000
+const dbStatus = {
+  connected: false,
+  error: null,
+}
 
 app.use(
   cors({
@@ -37,10 +42,27 @@ app.get('/', (_req, res) => {
   })
 })
 
+app.use('/api/complaints', (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database is unavailable. Please try again in a few moments.',
+    })
+  }
+  return next()
+})
 app.use('/api/complaints', complaintRoutes)
 
 app.get('/api/health', (_req, res) => {
-  res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() })
+  res.json({
+    success: true,
+    status: 'ok',
+    db: {
+      connected: dbStatus.connected,
+      error: dbStatus.error,
+    },
+    timestamp: new Date().toISOString(),
+  })
 })
 
 app.use((_req, res) => {
@@ -56,15 +78,18 @@ app.use((err, _req, res, _next) => {
 })
 
 connectDB()
-  .then(() => {
+  .then((connectionState) => {
+    dbStatus.connected = Boolean(connectionState?.connected)
+    dbStatus.error = connectionState?.error ?? null
+
     app.listen(PORT, () => {
       console.log(`Aqro backend running at http://localhost:${PORT}`)
       console.log(`Gemini configured: ${Boolean(process.env.GEMINI_API_KEY)}`)
+      console.log(`MongoDB connected: ${dbStatus.connected}`)
+      if (!dbStatus.connected && dbStatus.error) {
+        console.warn(`MongoDB startup warning: ${dbStatus.error}`)
+      }
     })
-  })
-  .catch((error) => {
-    console.error('Failed to start server:', error.message)
-    process.exit(1)
   })
 
 process.on('SIGTERM', () => {

@@ -11,6 +11,136 @@ function clampSeverityScore(input) {
   return Math.max(1, Math.min(10, Math.round(value)))
 }
 
+function toCleanedNotification(complaint) {
+  return {
+    complaint_id: complaint._id,
+    before_image: complaint.image_url || complaint.imageUrl || '',
+    after_image: complaint.cleaned_image_url || '',
+    team_name: complaint.assignedTo || '',
+    cleared_at: complaint.cleared_at,
+    review_submitted: complaint.citizen_review?.state === 'submitted',
+    message:
+      complaint.notification?.message ||
+      `Your complaint has been resolved by Team ${complaint.assignedTo || 'Municipal'}.`,
+    location: complaint.location?.address || '',
+    dismissed: Boolean(complaint.notification?.dismissed),
+  }
+}
+
+/**
+ * GET /api/complaints/notifications/:userId
+ * Fetch notifications for a citizen from complaints table.
+ */
+router.get('/notifications/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    const complaints = await Complaint.find({
+      createdBy: userId,
+      'notification.sent': true,
+      'notification.dismissed': { $ne: true },
+      status: { $in: ['cleared', 'completed'] },
+    }).sort({ cleared_at: -1, updatedAt: -1 })
+
+    res.json({
+      success: true,
+      data: complaints.map(toCleanedNotification),
+      count: complaints.length,
+    })
+  } catch (error) {
+    console.error('Get notifications error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch notifications',
+      error: error.message,
+    })
+  }
+})
+
+/**
+ * POST /api/complaints/:id/review
+ * Save citizen rating/comment state.
+ */
+router.post('/:id/review', async (req, res) => {
+  try {
+    const { rating, comment = '' } = req.body
+    const parsedRating = Number(rating)
+
+    if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'rating must be between 1 and 5',
+      })
+    }
+
+    const complaint = await Complaint.findById(req.params.id)
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found',
+      })
+    }
+
+    complaint.citizen_review = {
+      rating: parsedRating,
+      comment: String(comment).trim(),
+      state: 'submitted',
+      submitted_at: new Date(),
+    }
+
+    await complaint.save()
+
+    res.json({
+      success: true,
+      message: 'Review saved successfully',
+      data: toCleanedNotification(complaint),
+    })
+  } catch (error) {
+    console.error('Save review error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save review',
+      error: error.message,
+    })
+  }
+})
+
+/**
+ * PATCH /api/complaints/:id/notification/dismiss
+ * Hide a citizen notification after review.
+ */
+router.patch('/:id/notification/dismiss', async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id)
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found',
+      })
+    }
+
+    complaint.notification = {
+      ...(complaint.notification || {}),
+      dismissed: true,
+      dismissed_at: new Date(),
+    }
+
+    await complaint.save()
+
+    res.json({
+      success: true,
+      message: 'Notification dismissed',
+      data: { complaint_id: complaint._id },
+    })
+  } catch (error) {
+    console.error('Dismiss notification error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to dismiss notification',
+      error: error.message,
+    })
+  }
+})
+
 /**
  * GET /api/complaints
  * Fetch all complaints with optional filtering
@@ -74,7 +204,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { title, description, imageUrl, location, category, createdBy, severity } =
+    const { title, description, imageUrl, location, category, createdBy, severity, lat, lng, address } =
       req.body
 
     // Parse location JSON if it's a string
@@ -85,6 +215,20 @@ router.post('/', upload.single('image'), async (req, res) => {
       } catch (e) {
         parsedLocation = {}
       }
+    }
+
+    if (!parsedLocation || typeof parsedLocation !== 'object') {
+      parsedLocation = {}
+    }
+
+    if (lat !== undefined && lng !== undefined) {
+      const parsedLat = Number(lat)
+      const parsedLng = Number(lng)
+      parsedLocation.lat = Number.isFinite(parsedLat) ? parsedLat : null
+      parsedLocation.lng = Number.isFinite(parsedLng) ? parsedLng : null
+    }
+    if (address) {
+      parsedLocation.address = address
     }
 
     const complaintContext = {
@@ -121,6 +265,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     // Handle image - either uploaded file or external URL
     if (req.file) {
       complaintData.imagePath = req.file.path
+      complaintData.imageUrl = `/uploads/${req.file.filename}`
+      complaintData.image_url = complaintData.imageUrl
       console.log(`📷 Image uploaded: ${req.file.filename}`)
 
       // Analyze the uploaded image with Gemini
@@ -157,6 +303,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       }
     } else if (imageUrl) {
       complaintData.imageUrl = imageUrl
+      complaintData.image_url = imageUrl
       console.log(`📷 External URL provided: ${imageUrl}`)
 
       // Optionally analyze external image
@@ -210,16 +357,33 @@ router.post('/', upload.single('image'), async (req, res) => {
  */
 router.patch('/:id', async (req, res) => {
   try {
-    const { status, notes, assignedTo, severity } = req.body
+    const { status, notes, assignedTo, severity, cleaned_image_url, location } = req.body
 
     const updateData = {}
     if (status !== undefined) updateData.status = status
     if (notes !== undefined) updateData.notes = notes
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo
+    if (cleaned_image_url !== undefined) updateData.cleaned_image_url = cleaned_image_url
+    if (location !== undefined) updateData.location = location
     if (severity !== undefined) {
       updateData.severity = severity
       updateData['ai_analysis.severity_score'] = clampSeverityScore(severity)
     }
+
+    if (status === 'cleared' || status === 'completed') {
+      updateData.cleared_at = new Date()
+      updateData['notification.sent'] = true
+      updateData['notification.dismissed'] = false
+      updateData['notification.sent_at'] = new Date()
+      updateData['notification.dismissed_at'] = null
+      updateData['notification.message'] =
+        'Your complaint has been resolved. Please review the cleaned image.'
+      updateData['citizen_review.state'] = 'pending'
+      updateData['citizen_review.rating'] = null
+      updateData['citizen_review.comment'] = ''
+      updateData['citizen_review.submitted_at'] = null
+    }
+
     updateData.updatedAt = new Date()
 
     const complaint = await Complaint.findByIdAndUpdate(

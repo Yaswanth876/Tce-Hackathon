@@ -3,24 +3,16 @@
 // Citizen notifications — shows cleared complaint cards with
 // before/after images and a star-rating review flow.
 //
-// Firestore path: notifications (collection)
-//   Fields: user_id, complaint_id, before_image, after_image,
-//           team_name, cleared_at, review_submitted, message,
-//           location
-//
-// Real-time via onSnapshot, filtered to currentUser.uid.
+// Data source: MongoDB backend complaint APIs.
 // ---------------------------------------------------------------
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  collection, query, where, onSnapshot,
-  doc, updateDoc, deleteDoc,
-  storage,
-  ref as storageRef,
-  deleteObject,
-  db,
-} from '../localDb'
+  getCitizenNotifications,
+  submitComplaintReview,
+  dismissComplaintNotification,
+} from '../api/complaintService'
 
 import { useAuth } from '../context/AuthContext'
 import ReviewModal from '../components/ReviewModal'
@@ -34,28 +26,6 @@ function formatDate(ts) {
     day: 'numeric', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
-}
-
-// ── Helpers ─── parse Storage path from download URL ─────────
-function storagePathFromUrl(url) {
-  try {
-    const decoded = decodeURIComponent(url.split('/o/')[1].split('?')[0])
-    return decoded
-  } catch {
-    return null
-  }
-}
-
-async function tryDeleteStorageUrl(url) {
-  if (!url) return
-  const path = storagePathFromUrl(url)
-  if (!path) return
-  try {
-    await deleteObject(storageRef(storage, path))
-  } catch (err) {
-    // Ignore if already deleted or not found
-    console.warn('Storage delete skipped:', path, err?.code)
-  }
 }
 
 // ── Lightbox ──────────────────────────────────────────────────
@@ -160,22 +130,20 @@ function ImageCell({ src, label, placeholder, onClick }) {
 
 // ── Single notification card ──────────────────────────────────
 
-function NotificationCard({ notification, user, onReviewSubmitted }) {
+function NotificationCard({ notification, user, onReviewSubmitted, onDeleted }) {
   const [modal,     setModal]     = useState(false)
   const [lightbox,  setLightbox]  = useState(null)   // { src, label }
   const [deleting,  setDeleting]  = useState(false)
 
-  async function handleReviewSubmitted() {
-    setModal(false)
-    // Mark review_submitted = true in Firestore
+  async function handleReviewSubmitted(reviewPayload) {
     try {
-      await updateDoc(doc(db, 'notifications', notification.id), {
-        review_submitted: true,
-      })
+      await submitComplaintReview(notification.complaint_id, reviewPayload)
+      setModal(false)
+      onReviewSubmitted?.()
     } catch (err) {
-      console.error('Failed to update review_submitted flag:', err)
+      console.error('Failed to submit review:', err)
+      throw err
     }
-    onReviewSubmitted()
   }
 
   async function handleDelete() {
@@ -183,18 +151,13 @@ function NotificationCard({ notification, user, onReviewSubmitted }) {
       return
     setDeleting(true)
     try {
-      // Delete uploaded images from Firebase Storage
-      await Promise.all([
-        tryDeleteStorageUrl(notification.after_image),
-        // before_image is the original complaint photo — don't delete it
-      ])
-      // Delete the notification document
-      await deleteDoc(doc(db, 'notifications', notification.id))
+      await dismissComplaintNotification(notification.complaint_id)
+      onDeleted?.()
     } catch (err) {
       console.error('Failed to delete notification:', err)
+    } finally {
       setDeleting(false)
     }
-    // onSnapshot will remove it from the list automatically
   }
 
   return (
@@ -360,37 +323,32 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([])
   const [loading,       setLoading]       = useState(true)
 
+  async function loadNotifications() {
+    if (!user?.uid) {
+      setNotifications([])
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    try {
+      const docs = await getCitizenNotifications(user.uid)
+      const sorted = docs.sort((a, b) => {
+        const ta = a.cleared_at?.toDate?.() ?? new Date(a.cleared_at ?? 0)
+        const tb = b.cleared_at?.toDate?.() ?? new Date(b.cleared_at ?? 0)
+        return tb - ta
+      })
+      setNotifications(sorted)
+    } catch (err) {
+      console.error('Notifications fetch error:', err)
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (!user?.uid) return
-
-    // Query without orderBy to avoid composite index while index builds;
-    // sort client-side by cleared_at desc
-    const q = query(
-      collection(db, 'notifications'),
-      where('user_id', '==', user.uid),
-    )
-
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        const docs = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const ta = a.cleared_at?.toDate?.() ?? new Date(a.cleared_at ?? 0)
-            const tb = b.cleared_at?.toDate?.() ?? new Date(b.cleared_at ?? 0)
-            return tb - ta
-          })
-        setNotifications(docs)
-        setLoading(false)
-      },
-      err => {
-        console.error('Notifications snapshot error:', err)
-        setLoading(false)
-      },
-    )
-
-    return unsub
-  // Only re-subscribe when the user changes; onSnapshot already delivers live updates
+    loadNotifications()
   }, [user?.uid])
 
   const unreviewed = notifications.filter(n => !n.review_submitted).length
@@ -480,7 +438,8 @@ export default function NotificationsPage() {
                 key={n.id}
                 notification={n}
                 user={user}
-                onReviewSubmitted={() => {}}
+                onReviewSubmitted={loadNotifications}
+                onDeleted={loadNotifications}
               />
             ))}
           </div>
