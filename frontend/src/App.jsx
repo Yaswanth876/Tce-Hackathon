@@ -36,9 +36,7 @@ import { FUNCTIONS_CONFIGURED, MAPS_CONFIGURED } from './config'
 const NAV_ITEMS = [
   { to: '/', label: 'Home', end: true },
   { to: '/report', label: 'File a Complaint', end: true },
-  { to: '/map', label: 'Monitoring Map', end: true },
   { to: '/leaderboard', label: 'Leaderboard', end: true },
-  { to: '/daily-report', label: 'Daily Report', end: true },
 ]
 
 // ── Emblem SVG (Ashoka-style simplified wheel) ────────────────
