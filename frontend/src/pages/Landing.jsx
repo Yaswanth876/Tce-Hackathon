@@ -7,8 +7,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, query, where, db } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import Button from '../components/Button'
 import { HiCpuChip, HiMap, HiChartBar, HiXCircle, HiCheckCircle, HiTrophy } from 'react-icons/hi'
 

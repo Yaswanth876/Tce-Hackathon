@@ -14,6 +14,7 @@
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import OfficerDashboard from './pages/OfficerDashboard'
+import ComplaintDashboardPage from './pages/ComplaintDashboardPage'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -391,6 +392,13 @@ export default function App() {
           <Route path="/admin/dashboard" element={
             <ProtectedRouteAdmin>
               <GovLayout><AdminDashboard /></GovLayout>
+            </ProtectedRouteAdmin>
+          } />
+
+          {/* ── Protected complaint management dashboard (AI analysis + location) ── */}
+          <Route path="/admin/complaints" element={
+            <ProtectedRouteAdmin>
+              <GovLayout><ComplaintDashboardPage /></GovLayout>
             </ProtectedRouteAdmin>
           } />
 

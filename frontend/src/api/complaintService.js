@@ -102,7 +102,32 @@ export async function createComplaint(input = {}) {
   }
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/complaints`, body)
+    // If imageFile is provided, use FormData for multipart request
+    let response
+    if (input.imageFile instanceof File) {
+      const formData = new FormData()
+      formData.append('image', input.imageFile)
+      formData.append('title', body.title)
+      formData.append('description', body.description)
+      formData.append('category', input.category || 'mixed')
+      formData.append('createdBy', input.createdBy || 'anonymous')
+      if (input.location) {
+        formData.append('location', JSON.stringify(input.location))
+      }
+      if (input.severity !== undefined) {
+        formData.append('severity', input.severity)
+      }
+
+      response = await axios.post(`${API_BASE_URL}/complaints`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+    } else {
+      // For URL-based images or no image
+      response = await axios.post(`${API_BASE_URL}/complaints`, body)
+    }
+
     const created = normalizeComplaint(response?.data?.data ?? response?.data ?? body)
 
     const local = readLocalComplaints()
@@ -114,9 +139,12 @@ export async function createComplaint(input = {}) {
         ...(response?.data ?? {}),
         _id: created._id,
         id: created.id,
+        complaint: created,
+        ai_analysis: created.ai_analysis,
       },
     }
-  } catch {
+  } catch (error) {
+    console.error('Create complaint error:', error)
     const created = normalizeComplaint({
       ...body,
       _id: `mock-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -129,6 +157,8 @@ export async function createComplaint(input = {}) {
       data: {
         _id: created._id,
         id: created.id,
+        complaint: created,
+        ai_analysis: created.ai_analysis,
       },
     }
   }

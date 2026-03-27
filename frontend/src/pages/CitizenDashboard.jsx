@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API instead
-// import { collection, query, where, onSnapshot } from 'firebase/firestore'
-// import { signOut } from 'firebase/auth'
-// import { auth, db } from '../firebase'
-import { getComplaints } from '../api/complaintService'
+import { collection, query, where, onSnapshot, signOut, auth, db } from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import UploadForm from '../components/UploadForm'
 import ComplaintCard from '../components/ComplaintCard'
@@ -150,7 +146,7 @@ export default function CitizenDashboard() {
   }, [user?.uid])
 
   async function handleSignOut() {
-    await signOut(auth)
+    await signOut()
     navigate('/login', { replace: true })
   }
 
@@ -234,7 +230,7 @@ export default function CitizenDashboard() {
         {view === 'file' && (
           <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-base font-semibold text-[#0a2240] mb-4">Submit a New Complaint</h2>
-            <UploadForm onSuccess={() => setView('list')} createdBy={user?.uid} />
+            <UploadForm createdBy={user?.uid} />
           </section>
         )}
 

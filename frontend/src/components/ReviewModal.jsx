@@ -6,8 +6,7 @@
 
 import { useState } from 'react'
 import { collection, addDoc, serverTimestamp, doc, updateDoc, increment, db } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import { awardTeamRatingBonus } from '../utils/teamScoreService'
 
 function StarRating({ rating, onChange, readonly = false }) {

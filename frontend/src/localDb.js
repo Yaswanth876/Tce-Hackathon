@@ -298,16 +298,18 @@ function saveAuthUser(user) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(user))
 }
 
-function ensureUsersCollectionUser(email, name = '') {
+function ensureUsersCollectionUser(email, name = '', role = 'citizen') {
   const users = readCollection('users')
-  let user = users.find((u) => u.email === email)
+  const normalizedEmail = String(email).trim().toLowerCase()
+  let user = users.find((u) => u.email === normalizedEmail)
   if (!user) {
+    const uid = makeId('uid')
     user = {
-      id: makeId('user'),
-      uid: makeId('uid'),
-      email,
+      id: uid,
+      uid: uid,
+      email: normalizedEmail,
       name,
-      role: 'citizen',
+      role,
       created_at: nowIso(),
       updated_at: nowIso(),
       points: 0,
@@ -322,13 +324,13 @@ function ensureUsersCollectionUser(email, name = '') {
 }
 
 export async function createUserWithEmailAndPassword(_auth, email, _password) {
-  const user = ensureUsersCollectionUser(String(email).trim().toLowerCase())
+  const user = ensureUsersCollectionUser(String(email).trim().toLowerCase(), '', 'citizen')
   saveAuthUser(user)
   return { user }
 }
 
 export async function signInWithEmailAndPassword(_auth, email, _password) {
-  const user = ensureUsersCollectionUser(String(email).trim().toLowerCase())
+  const user = ensureUsersCollectionUser(String(email).trim().toLowerCase(), '', 'citizen')
   saveAuthUser(user)
   return { user }
 }

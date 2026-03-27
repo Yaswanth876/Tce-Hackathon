@@ -13,11 +13,25 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API instead of Firebase
-// import { signOut } from 'firebase/auth'
-// import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-// import { auth, db, storage } from '../firebase'
-import { getComplaints, updateComplaint } from '../api/complaintService'
+import {
+  signOut,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  auth,
+  db,
+  storage,
+  query,
+  collection,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
+  serverTimestamp,
+  addDoc,
+  getDocs,
+  writeBatch
+} from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import { HiInboxArrowDown } from 'react-icons/hi2'
@@ -542,7 +556,7 @@ export default function AdminDashboard() {
   }, [complaints]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSignOut() {
-    await signOut(auth)
+    await signOut()
     navigate('/admin', { replace: true })
   }
 

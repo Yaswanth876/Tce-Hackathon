@@ -19,9 +19,9 @@ import {
   auth,
   db,
   googleProvider,
+  signOut,
 } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { auth, db, googleProvider } from '../firebase'
+
 import { useAuth } from '../context/AuthContext'
 
 const ADMIN_ROLES = ['admin', 'municipality']
@@ -135,7 +135,7 @@ export default function AdminLogin() {
         await refreshUserDoc(result.user.uid)
       } else if (!ADMIN_ROLES.includes(snap.data().role)) {
         // Existing user but wrong role
-        await auth.signOut()
+        await signOut()
         throw new Error('not-authorized')
       }
 
@@ -162,7 +162,7 @@ export default function AdminLogin() {
       const snap = await getDoc(doc(db, 'users', cred.user.uid))
 
       if (!snap.exists() || !ADMIN_ROLES.includes(snap.data().role)) {
-        await auth.signOut()
+        await signOut()
         throw new Error('not-authorized')
       }
 
@@ -191,7 +191,8 @@ export default function AdminLogin() {
         email:      email.toLowerCase().trim(),
         role:       'municipality',
         created_at: serverTimestamp(),
-      })
+        updated_at: serverTimestamp(),
+      }, { merge: true })
       await refreshUserDoc(cred.user.uid)
       navigate('/admin/dashboard', { replace: true })
     } catch (err) {

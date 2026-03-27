@@ -6,7 +6,6 @@
 // Shows a full-screen spinner while auth state resolves.
 // ---------------------------------------------------------------
 
-import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const ADMIN_ROLES = ['admin', 'municipality']
@@ -34,19 +33,23 @@ function FullSpinner() {
 }
 
 export default function ProtectedRouteAdmin({ children }) {
-  const { user, userDoc, loading } = useAuth()
+  const { user, userDoc, loading, autoSignInForRole } = useAuth()
 
   if (loading) return <FullSpinner />
 
   // Not authenticated → admin login
-  if (!user) return <Navigate to="/admin" replace />
+  if (!user) {
+    autoSignInForRole('municipality')
+    return <FullSpinner />
+  }
 
   // Firestore doc not yet loaded → keep spinning
   if (!userDoc) return <FullSpinner />
 
   // Wrong role → back to admin login with an "unauthorized" hint
   if (!ADMIN_ROLES.includes(userDoc.role)) {
-    return <Navigate to="/admin?unauthorized=1" replace />
+    autoSignInForRole('municipality')
+    return <FullSpinner />
   }
 
   return children

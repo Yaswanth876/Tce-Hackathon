@@ -21,8 +21,7 @@ import {
   deleteObject,
   db,
 } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db, storage } from '../firebase'
+
 import { useAuth } from '../context/AuthContext'
 import ReviewModal from '../components/ReviewModal'
 

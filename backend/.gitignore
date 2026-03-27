@@ -1,0 +1,14 @@
+node_modules/
+.env
+<<<<<<< HEAD
+.env.local
+uploads/
+dist/
+.DS_Store
+*.log
+npm-debug.log*
+.vscode/
+.idea/
+=======
+uploads/
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263

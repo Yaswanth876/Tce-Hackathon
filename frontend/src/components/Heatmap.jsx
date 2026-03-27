@@ -11,10 +11,7 @@
 // ---------------------------------------------------------------
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-// MIGRATED: Use complaintService instead
-// import { db } from '../firebase'
-// import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
-import { getComplaints } from '../api/complaintService'
+import { db, collection, onSnapshot, query, orderBy } from '../localDb'
 import { MAPS_API_KEY, MAPS_CONFIGURED } from '../config'
 import { HiClipboardDocument, HiSquares2X2, HiExclamationTriangle, HiMapPin } from 'react-icons/hi2'
 
