@@ -1,13 +1,10 @@
 // src/components/ReviewModal.jsx
 // ---------------------------------------------------------------
 // Star-rating review modal for resolved complaints.
-// Saves to Firestore `reviews` collection.
+// Saves via parent callback to backend complaint API.
 // ---------------------------------------------------------------
 
 import { useState } from 'react'
-import { collection, addDoc, serverTimestamp, doc, updateDoc, increment, db } from '../localDb'
-
-import { awardTeamRatingBonus } from '../utils/teamScoreService'
 
 function StarRating({ rating, onChange, readonly = false }) {
   const [hovered, setHovered] = useState(0)
@@ -62,49 +59,15 @@ export default function ReviewModal({ notification, user, onClose, onSubmitted }
     setError(null)
 
     try {
-      await addDoc(collection(db, 'reviews'), {
-        complaint_id: notification.complaint_id,
-        team_name:    notification.team_name ?? '',
+      await onSubmitted({
         rating,
-        feedback:     feedback.trim(),
-        user_id:      user.uid,
-        created_at:   serverTimestamp(),
+        comment: feedback.trim(),
+        user_id: user?.uid ?? '',
       })
-      // Award rating bonus points to the team
-      if (notification.team_name) {
-        await awardTeamRatingBonus(notification.team_name, rating)
-      }
-
-      // ── Rating < 3: reopen the complaint ──────────────────────────────────────
-      // The citizen is unsatisfied — reopen to 'analyzing' so the admin
-      // can re-dispatch a team. Also:
-      //   • Reset team_points_awarded so the base +20 is re-awarded properly
-      //     when the complaint is cleared a second time.
-      //   • Deduct 1 from total_cleared and 20 pts from the team's score.
-      if (rating < 3 && notification.complaint_id) {
-        const reportRef = doc(db, 'reports', notification.complaint_id)
-        await updateDoc(reportRef, {
-          status:              'analyzing',
-          team_points_awarded: false,   // allow re-award on next clear
-          notification_sent:   false,   // allow new notification on next clear
-          reopened_at:         serverTimestamp(),
-          updated_at:          serverTimestamp(),
-        })
-        // Adjust team score: remove the clear credit that is now invalidated
-        if (notification.team_name) {
-          const teamRef = doc(db, 'teams', notification.team_name)
-          await updateDoc(teamRef, {
-            total_cleared: increment(-1),
-            total_points:  increment(-20),
-            updated_at:    serverTimestamp(),
-          }).catch(() => {}) // best-effort — don't block on score adjustment
-        }
-      }
-
-      onSubmitted()
     } catch (err) {
       console.error('Review submit error:', err)
       setError('Failed to submit review. Please try again.')
+    } finally {
       setSubmitting(false)
     }
   }

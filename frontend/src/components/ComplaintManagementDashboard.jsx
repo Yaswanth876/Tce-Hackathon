@@ -24,6 +24,7 @@ export default function ComplaintManagementDashboard() {
   const [sortBy, setSortBy] = useState('severity')
   const [expandedId, setExpandedId] = useState(null)
   const [assignmentData, setAssignmentData] = useState({})
+  const [completionData, setCompletionData] = useState({})
 
   useEffect(() => {
     loadComplaints()
@@ -45,7 +46,9 @@ export default function ComplaintManagementDashboard() {
           const bWorkers = b.ai_analysis?.sanitary_workers_needed?.recommended || 0
           return bWorkers - aWorkers
         } else if (sortBy === 'date') {
-          return new Date(b.createdAt) - new Date(a.createdAt)
+          const left = b.createdAt || b.created_at
+          const right = a.createdAt || a.created_at
+          return new Date(left) - new Date(right)
         }
         return 0
       })
@@ -57,9 +60,37 @@ export default function ComplaintManagementDashboard() {
     setLoading(false)
   }
 
+  async function fileToDataUrl(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Failed to read image file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
   const handleStatusChange = async (complaintId, newStatus) => {
     try {
-      await updateComplaint(complaintId, { status: newStatus })
+      const completion = completionData[complaintId] || {}
+      const payload = { status: newStatus }
+
+      if (newStatus === 'completed') {
+        if (!completion.file) {
+          alert('Please upload the cleaned area image before marking as completed.')
+          return
+        }
+        payload.cleaned_image_url = await fileToDataUrl(completion.file)
+        payload.notes = completion.comment?.trim() || 'Marked completed with cleaned-area proof image.'
+      }
+
+      await updateComplaint(complaintId, payload)
+
+      if (newStatus === 'completed') {
+        setCompletionData((prev) => ({
+          ...prev,
+          [complaintId]: { file: null, preview: '', comment: '' },
+        }))
+      }
       await loadComplaints()
     } catch (error) {
       console.error('Failed to update complaint:', error)
@@ -80,6 +111,19 @@ export default function ComplaintManagementDashboard() {
   }
 
   const getUrgencyColor = (level) => priorityColors[level] || 'bg-gray-100 text-gray-800'
+  const complaintDate = (complaint) => complaint.createdAt || complaint.created_at
+  const complaintImage = (complaint) => {
+    if (complaint.imageUrl) return complaint.imageUrl
+    if (complaint.image_url) return complaint.image_url
+    if (complaint.imagePath) {
+      const normalizedPath = String(complaint.imagePath).replace(/\\/g, '/')
+      if (normalizedPath.startsWith('http://') || normalizedPath.startsWith('https://')) {
+        return normalizedPath
+      }
+      return `http://localhost:5000/${normalizedPath.replace(/^\/+/, '')}`
+    }
+    return null
+  }
 
   // Stats
   const totalComplaints = complaints.length
@@ -255,7 +299,7 @@ export default function ComplaintManagementDashboard() {
                         <span className="text-xs text-gray-500">/10</span>
                       </div>
                       <p className="text-xs text-gray-500">
-                        {new Date(complaint.createdAt).toLocaleDateString()}
+                        {new Date(complaintDate(complaint)).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -379,6 +423,30 @@ export default function ComplaintManagementDashboard() {
                       </div>
                     )}
 
+                    {complaint.ai_analysis?.officer_summary && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded p-4">
+                        <h4 className="font-semibold text-indigo-900 mb-2">Officer Briefing</h4>
+                        <p className="text-sm text-indigo-900">{complaint.ai_analysis.officer_summary}</p>
+                        {complaint.ai_analysis.officer_actions?.length > 0 && (
+                          <ul className="mt-3 space-y-1 text-sm text-indigo-800">
+                            {complaint.ai_analysis.officer_actions.slice(0, 6).map((action, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span>•</span>
+                                <span>{action}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {complaint.ai_analysis?.citizen_summary && (
+                      <div className="bg-green-50 border border-green-200 rounded p-4">
+                        <h4 className="font-semibold text-green-900 mb-2">Citizen Communication</h4>
+                        <p className="text-sm text-green-900">{complaint.ai_analysis.citizen_summary}</p>
+                      </div>
+                    )}
+
                     {/* Location Info */}
                     <div className="bg-blue-50 border border-blue-200 rounded p-4">
                       {complaint.location?.lat && (
@@ -403,14 +471,11 @@ export default function ComplaintManagementDashboard() {
                     </div>
 
                     {/* Image */}
-                    {(complaint.imagePath || complaint.imageUrl) && (
+                    {complaintImage(complaint) && (
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-2">Complaint Image</p>
                         <img
-                          src={
-                            complaint.imageUrl ||
-                            `http://localhost:5000/${complaint.imagePath}`
-                          }
+                          src={complaintImage(complaint)}
                           alt="Complaint"
                           className="max-h-64 w-full object-cover rounded-lg"
                           onError={(e) => {
@@ -479,10 +544,74 @@ export default function ComplaintManagementDashboard() {
                             By: <span className="font-medium">{complaint.createdBy || 'Anonymous'}</span>
                           </p>
                           <p className="text-xs text-gray-600 mt-1">
-                            {new Date(complaint.createdAt).toLocaleDateString()} {new Date(complaint.createdAt).toLocaleTimeString()}
+                            {new Date(complaintDate(complaint)).toLocaleDateString()} {new Date(complaintDate(complaint)).toLocaleTimeString()}
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 rounded p-4 space-y-3">
+                      <h4 className="font-semibold text-emerald-900">Completion Proof (for citizen notification)</h4>
+                      <p className="text-sm text-emerald-800">
+                        Upload the cleaned area image before selecting <strong>Completed</strong>. This image is sent to the complaint creator.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Cleaned Area Image
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null
+                              const preview = file ? URL.createObjectURL(file) : ''
+                              setCompletionData((prev) => ({
+                                ...prev,
+                                [complaint._id]: {
+                                  ...(prev[complaint._id] || {}),
+                                  file,
+                                  preview,
+                                },
+                              }))
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Officer Comment
+                          </label>
+                          <textarea
+                            rows={3}
+                            placeholder="Add completion comment for database record..."
+                            value={completionData[complaint._id]?.comment || ''}
+                            onChange={(e) =>
+                              setCompletionData((prev) => ({
+                                ...prev,
+                                [complaint._id]: {
+                                  ...(prev[complaint._id] || {}),
+                                  comment: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {(completionData[complaint._id]?.preview || complaint.cleaned_image_url) && (
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700 mb-2">After Cleaning Preview</p>
+                          <img
+                            src={completionData[complaint._id]?.preview || complaint.cleaned_image_url}
+                            alt="Cleaned area proof"
+                            className="max-h-64 w-full object-cover rounded-lg border"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
