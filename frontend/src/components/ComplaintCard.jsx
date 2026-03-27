@@ -129,6 +129,23 @@ export default function ComplaintCard({ report, isAdmin = false, onStatusChange,
           )}
         </div>
 
+        {report.ai_analysis?.citizen_summary && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+            <p className="text-xs font-semibold text-[#104080]">Gemini Summary</p>
+            <p className="text-xs text-slate-700 mt-1">{report.ai_analysis.citizen_summary}</p>
+            {Array.isArray(report.ai_analysis.citizen_advice) && report.ai_analysis.citizen_advice.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                {report.ai_analysis.citizen_advice.slice(0, 2).map((tip, idx) => (
+                  <li key={idx} className="flex items-start gap-1">
+                    <span>•</span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {/* Admin controls */}
         {isAdmin && (
           <div className="pt-2 border-t border-slate-100 space-y-3">

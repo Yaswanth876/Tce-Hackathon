@@ -12,9 +12,9 @@
 // ---------------------------------------------------------------
 
 import { useState, useRef, useCallback } from 'react'
-import { db, collection, addDoc, serverTimestamp } from '../localDb'
 import { HiExclamationTriangle } from 'react-icons/hi2'
 import { API_BASE_URL } from '../config'
+import { createComplaint } from '../api/complaintService'
 
 // ── Constants ──────────────────────────────────────────────────
 const ACCEPTED_MIME = 'image/jpeg,image/png,image/webp'
@@ -146,39 +146,33 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
             setUploadProgress(50)
             setUploadStatus('saving')
 
-            const mockAiAnalysis = {
-                severity_score: Math.floor(Math.random() * 50) + 50, // 50-99
-                waste_type: ['Plastic', 'Organic', 'Electronic', 'Mixed'][Math.floor(Math.random() * 4)],
-                urgency_level: ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
-            }
-
             const reportData = {
-                title: 'Image Report',
-                description: 'Image-based complaint report',
+                title: 'Sanitation Complaint',
+                description: 'Image-based complaint report from citizen',
                 category: 'other',
                 severity: 'medium',
                 location: {
                     lat: coords.latitude,
                     lng: coords.longitude,
+                    address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
                 },
-                address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
-                photo: preview,
-                image_url: preview, // keeping for backward compatibility in components
-                status: 'pending',
-                created_at: serverTimestamp(),
-                created_by: createdBy || 'citizen',
-                ai_analysis: mockAiAnalysis,
+                imageFile,
+                image_url: preview,
+                createdBy: createdBy || 'citizen',
             }
 
-            const response = await addDoc(collection(db, 'reports'), reportData)
+            const response = await createComplaint(reportData)
+            const payload = response?.data ?? {}
+            const complaint = payload?.complaint ?? payload?.data ?? payload
+            const complaintId = payload?._id ?? payload?.id ?? complaint?._id ?? complaint?.id ?? null
 
-            const ai = response?.ai_analysis ?? reportData.ai_analysis ?? null
+            const ai = payload?.ai_analysis ?? complaint?.ai_analysis ?? null
 
             setUploadProgress(100)
-            setCreatedId(response?.id ?? null)
+            setCreatedId(complaintId)
             setAnalysisResult(ai)
             setUploadStatus('done')
-            onSuccess?.({ complaintId: response?.id, coords, aiAnalysis: ai })
+            onSuccess?.({ complaintId, coords, aiAnalysis: ai })
 
         } catch (err) {
             console.error('[UploadForm] submission error:', err)

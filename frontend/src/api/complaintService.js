@@ -12,6 +12,70 @@ function asNumber(value) {
   return Number.isFinite(n) ? n : null
 }
 
+function clamp(value, min, max, fallback) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, n))
+}
+
+function normalizePriority(value, fallback = 'medium') {
+  const v = String(value ?? '').toLowerCase()
+  return ['low', 'medium', 'high', 'critical'].includes(v) ? v : fallback
+}
+
+function normalizedAnalysis(raw = {}) {
+  const source = raw.ai_analysis ?? raw
+  const severityScore = Math.round(
+    clamp(
+      source?.severity_score ?? raw.severity_score ?? raw.severity,
+      1,
+      10,
+      5
+    )
+  )
+
+  return {
+    waste_type: source?.waste_type ?? raw.waste_type ?? raw.category ?? 'mixed',
+    waste_composition: Array.isArray(source?.waste_composition) ? source.waste_composition : [],
+    estimated_volume: {
+      amount: clamp(source?.estimated_volume?.amount, 0, 100000, 0),
+      unit: source?.estimated_volume?.unit ?? 'kg',
+      description: source?.estimated_volume?.description ?? '',
+    },
+    sanitary_workers_needed: {
+      minimum: Math.max(1, Math.round(clamp(source?.sanitary_workers_needed?.minimum, 1, 500, 1))),
+      recommended: Math.max(
+        Math.round(clamp(source?.sanitary_workers_needed?.minimum, 1, 500, 1)),
+        Math.round(clamp(source?.sanitary_workers_needed?.recommended, 1, 500, 2))
+      ),
+      equipment: Array.isArray(source?.sanitary_workers_needed?.equipment)
+        ? source.sanitary_workers_needed.equipment
+        : [],
+    },
+    hazards: {
+      immediate_hazards: Array.isArray(source?.hazards?.immediate_hazards)
+        ? source.hazards.immediate_hazards
+        : [],
+      environmental_impact: source?.hazards?.environmental_impact ?? '',
+      health_risks: Array.isArray(source?.hazards?.health_risks)
+        ? source.hazards.health_risks
+        : [],
+      contamination_risk: normalizePriority(source?.hazards?.contamination_risk),
+    },
+    severity_score: severityScore,
+    urgency_level: normalizePriority(source?.urgency_level),
+    cleanup_priority: normalizePriority(source?.cleanup_priority),
+    confidence: Math.round(clamp(source?.confidence, 0, 100, 0)),
+    location_characteristics: source?.location_characteristics ?? '',
+    officer_summary: source?.officer_summary ?? '',
+    officer_actions: Array.isArray(source?.officer_actions) ? source.officer_actions : [],
+    citizen_summary: source?.citizen_summary ?? '',
+    citizen_advice: Array.isArray(source?.citizen_advice) ? source.citizen_advice : [],
+    rawAnalysis: source?.rawAnalysis ?? '',
+    analyzedAt: source?.analyzedAt ?? null,
+  }
+}
+
 function normalizeComplaint(raw = {}) {
   const id = raw.id ?? raw._id ?? raw.complaintId ?? `cmp-${Date.now()}-${Math.floor(Math.random() * 10000)}`
   const lat = asNumber(raw.lat ?? raw.latitude ?? raw.location?.lat ?? raw.location?.latitude)
@@ -31,28 +95,21 @@ function normalizeComplaint(raw = {}) {
     lng,
     location: raw.location ?? (lat != null && lng != null ? { lat, lng } : undefined),
     severity:
-      raw.severity ??
-      raw.severity_score ??
-      raw.ai_analysis?.severity_score ??
-      (raw.priority === 'high' ? 8 : 5),
+      clamp(
+        raw.severity ??
+        raw.severity_score ??
+        raw.ai_analysis?.severity_score ??
+        (raw.priority === 'high' ? 8 : 5),
+        1,
+        10,
+        5
+      ),
     waste_type:
       raw.waste_type ??
       raw.category ??
       raw.ai_analysis?.waste_type ??
       'mixed',
-    ai_analysis: raw.ai_analysis ?? {
-      severity_score:
-        raw.severity_score ??
-        raw.severity ??
-        5,
-      waste_type:
-        raw.waste_type ??
-        raw.category ??
-        'mixed',
-      urgency_level:
-        raw.urgency_level ??
-        (raw.severity >= 8 ? 'critical' : raw.severity >= 6 ? 'high' : 'medium'),
-    },
+    ai_analysis: normalizedAnalysis(raw),
   }
 }
 

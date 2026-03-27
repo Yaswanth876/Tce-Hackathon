@@ -5,6 +5,12 @@ import upload from '../config/multer.js'
 
 const router = express.Router()
 
+function clampSeverityScore(input) {
+  const value = Number(input)
+  if (!Number.isFinite(value)) return 5
+  return Math.max(1, Math.min(10, Math.round(value)))
+}
+
 /**
  * GET /api/complaints
  * Fetch all complaints with optional filtering
@@ -81,6 +87,15 @@ router.post('/', upload.single('image'), async (req, res) => {
       }
     }
 
+    const complaintContext = {
+      title,
+      description,
+      category,
+      severity,
+      location: parsedLocation,
+      createdBy,
+    }
+
     // Create complaint object
     const complaintData = {
       title,
@@ -88,11 +103,18 @@ router.post('/', upload.single('image'), async (req, res) => {
       category: category || 'mixed',
       createdBy: createdBy || 'anonymous',
       location: parsedLocation || {},
+      severity: severity || 'medium',
+      status: 'pending',
       ai_analysis: {
-        severity_score: severity || 5,
+        severity_score: clampSeverityScore(severity),
         waste_type: category || 'mixed',
         urgency_level: 'medium',
+        cleanup_priority: 'medium',
         confidence: 0,
+        officer_summary: 'Initial complaint received. Awaiting AI verification.',
+        officer_actions: ['Validate complaint evidence and assign field team.'],
+        citizen_summary: 'Complaint received. Analysis and assignment are in progress.',
+        citizen_advice: ['Avoid direct contact with the waste until cleaned.'],
       },
     }
 
@@ -103,7 +125,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       // Analyze the uploaded image with Gemini
       console.log(`🔍 Analyzing image with Gemini AI...`)
-      const analysis = await analyzeWasteImage(req.file.path)
+      const analysis = await analyzeWasteImage(req.file.path, complaintContext)
 
       if (analysis.success) {
         complaintData.ai_analysis = {
@@ -117,6 +139,10 @@ router.post('/', upload.single('image'), async (req, res) => {
           cleanup_priority: analysis.cleanup_priority,
           location_characteristics: analysis.location_characteristics,
           confidence: analysis.confidence,
+          officer_summary: analysis.officer_summary,
+          officer_actions: analysis.officer_actions,
+          citizen_summary: analysis.citizen_summary,
+          citizen_advice: analysis.citizen_advice,
           rawAnalysis: analysis.rawAnalysis,
           analyzedAt: analysis.analyzedAt,
         }
@@ -134,7 +160,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       console.log(`📷 External URL provided: ${imageUrl}`)
 
       // Optionally analyze external image
-      const analysis = await analyzeWasteImageFromUrl(imageUrl)
+      const analysis = await analyzeWasteImageFromUrl(imageUrl, complaintContext)
       if (analysis.success) {
         complaintData.ai_analysis = {
           waste_type: analysis.waste_type,
@@ -144,8 +170,13 @@ router.post('/', upload.single('image'), async (req, res) => {
           hazards: analysis.hazards,
           severity_score: analysis.severity_score,
           urgency_level: analysis.urgency_level,
+          cleanup_priority: analysis.cleanup_priority,
           location_characteristics: analysis.location_characteristics,
           confidence: analysis.confidence,
+          officer_summary: analysis.officer_summary,
+          officer_actions: analysis.officer_actions,
+          citizen_summary: analysis.citizen_summary,
+          citizen_advice: analysis.citizen_advice,
           rawAnalysis: analysis.rawAnalysis,
           analyzedAt: analysis.analyzedAt,
         }
@@ -187,8 +218,7 @@ router.patch('/:id', async (req, res) => {
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo
     if (severity !== undefined) {
       updateData.severity = severity
-      if (updateData.ai_analysis)
-        updateData.ai_analysis.severity_score = severity
+      updateData['ai_analysis.severity_score'] = clampSeverityScore(severity)
     }
     updateData.updatedAt = new Date()
 

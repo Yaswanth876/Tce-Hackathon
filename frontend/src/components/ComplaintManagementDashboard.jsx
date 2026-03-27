@@ -379,6 +379,30 @@ export default function ComplaintManagementDashboard() {
                       </div>
                     )}
 
+                    {complaint.ai_analysis?.officer_summary && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded p-4">
+                        <h4 className="font-semibold text-indigo-900 mb-2">Officer Briefing</h4>
+                        <p className="text-sm text-indigo-900">{complaint.ai_analysis.officer_summary}</p>
+                        {complaint.ai_analysis.officer_actions?.length > 0 && (
+                          <ul className="mt-3 space-y-1 text-sm text-indigo-800">
+                            {complaint.ai_analysis.officer_actions.slice(0, 6).map((action, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span>•</span>
+                                <span>{action}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {complaint.ai_analysis?.citizen_summary && (
+                      <div className="bg-green-50 border border-green-200 rounded p-4">
+                        <h4 className="font-semibold text-green-900 mb-2">Citizen Communication</h4>
+                        <p className="text-sm text-green-900">{complaint.ai_analysis.citizen_summary}</p>
+                      </div>
+                    )}
+
                     {/* Location Info */}
                     <div className="bg-blue-50 border border-blue-200 rounded p-4">
                       {complaint.location?.lat && (
