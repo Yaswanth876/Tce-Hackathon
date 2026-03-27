@@ -8,11 +8,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-<<<<<<< HEAD
 import { signInWithEmailAndPassword, doc, getDoc, auth, db, signOut } from '../localDb'
-=======
-import { signInWithEmailAndPassword, doc, getDoc, auth, db } from '../localDb'
->>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 import { HiLockClosed, HiExclamationTriangle } from 'react-icons/hi2'
 
 const ADMIN_ROLES = ['admin', 'municipality']
