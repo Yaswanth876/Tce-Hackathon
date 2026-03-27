@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-<<<<<<< HEAD
 import { collection, query, where, onSnapshot, signOut, auth, db } from '../localDb'
-import { getComplaints } from '../api/complaintService'
-=======
-import { collection, query, where, onSnapshot } from '../localDb'
-import { signOut, auth, db } from '../localDb'
->>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 import { useAuth } from '../context/AuthContext'
 import UploadForm from '../components/UploadForm'
 import ComplaintCard from '../components/ComplaintCard'

@@ -8,9 +8,6 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-<<<<<<< HEAD
-import { signInWithEmailAndPassword, signInWithPopup, doc, getDoc, setDoc, serverTimestamp, auth, db, signOut } from '../localDb'
-=======
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -20,9 +17,9 @@ import {
   serverTimestamp,
   auth,
   db,
+  signOut,
   googleProvider,
 } from '../localDb'
->>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/Button'
 import { HiExclamationTriangle } from 'react-icons/hi2'
