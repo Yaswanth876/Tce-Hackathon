@@ -5,6 +5,8 @@ export const storage = {}
 export const googleProvider = { providerId: 'google.com' }
 
 const AUTH_KEY = 'aqro_auth_user'
+const snapshotListeners = new Set()
+let storageBridgeBound = false
 
 export const auth = {
   get currentUser() {
@@ -25,6 +27,39 @@ function collKey(name) {
   return `${DB_KEY_PREFIX}${name}`
 }
 
+function collectionNameFromRef(refOrQuery) {
+  if (!refOrQuery) return null
+  if (refOrQuery.kind === 'collection') return refOrQuery.name
+  if (refOrQuery.kind === 'query') return refOrQuery.collection?.name ?? null
+  return null
+}
+
+function emitSnapshot(listener) {
+  Promise.resolve()
+    .then(() => getDocs(listener.refOrQuery))
+    .then((snapshot) => listener.onNext(snapshot))
+    .catch((err) => listener.onError && listener.onError(err))
+}
+
+function notifySnapshotListeners(changedCollection) {
+  snapshotListeners.forEach((listener) => {
+    if (!listener.collectionName || listener.collectionName === changedCollection) {
+      emitSnapshot(listener)
+    }
+  })
+}
+
+function ensureStorageBridge() {
+  if (storageBridgeBound || typeof window === 'undefined') return
+  window.addEventListener('storage', (event) => {
+    if (!event?.key || !event.key.startsWith(DB_KEY_PREFIX)) return
+    const changedCollection = event.key.slice(DB_KEY_PREFIX.length)
+    if (!changedCollection) return
+    notifySnapshotListeners(changedCollection)
+  })
+  storageBridgeBound = true
+}
+
 function readCollection(name) {
   try {
     const raw = localStorage.getItem(collKey(name))
@@ -37,6 +72,7 @@ function readCollection(name) {
 
 function writeCollection(name, items) {
   localStorage.setItem(collKey(name), JSON.stringify(items))
+  notifySnapshotListeners(name)
 }
 
 function clone(value) {
@@ -268,11 +304,16 @@ export function writeBatch() {
 }
 
 export function onSnapshot(refOrQuery, onNext, onError) {
-  Promise.resolve()
-    .then(() => getDocs(refOrQuery))
-    .then((snapshot) => onNext(snapshot))
-    .catch((err) => onError && onError(err))
-  return () => {}
+  const listener = {
+    refOrQuery,
+    onNext,
+    onError,
+    collectionName: collectionNameFromRef(refOrQuery),
+  }
+  ensureStorageBridge()
+  snapshotListeners.add(listener)
+  emitSnapshot(listener)
+  return () => snapshotListeners.delete(listener)
 }
 
 export async function runTransaction(_db, updateFunction) {
