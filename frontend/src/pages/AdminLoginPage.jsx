@@ -8,10 +8,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API
-// import { signInWithEmailAndPassword } from 'firebase/auth'
-// import { doc, getDoc } from 'firebase/firestore'
-// import { auth, db } from '../firebase'
+import { signInWithEmailAndPassword, doc, getDoc, auth, db } from '../localDb'
 import { HiLockClosed, HiExclamationTriangle } from 'react-icons/hi2'
 
 function ShieldIcon() {

@@ -1,8 +1,7 @@
 // src/pages/LeaderboardPage.jsx
 import { useState, useEffect } from 'react'
 import { collection, query, orderBy, limit, onSnapshot, where, db } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import { createUserIdentifier } from '../utils/userManager'
 import {
   HiTrophy, HiStar, HiInformationCircle, HiUserGroup,

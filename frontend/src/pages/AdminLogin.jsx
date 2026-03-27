@@ -20,8 +20,7 @@ import {
   db,
   googleProvider,
 } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { auth, db, googleProvider } from '../firebase'
+
 import { useAuth } from '../context/AuthContext'
 
 const ADMIN_ROLES = ['admin', 'municipality']

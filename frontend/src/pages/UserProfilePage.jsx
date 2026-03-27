@@ -7,8 +7,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, query, where, orderBy, onSnapshot, doc, getDoc, db } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import { getUserData, createUserIdentifier } from '../utils/userManager'
 import { HiTrophy, HiStar, HiShieldCheck, HiSparkles } from 'react-icons/hi2'
 

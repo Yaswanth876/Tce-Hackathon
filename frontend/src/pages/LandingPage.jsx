@@ -15,8 +15,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, onSnapshot, db } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import StatCard from '../components/landing/StatCard'
 import FeatureCard from '../components/landing/FeatureCard'
 import TimelineStep from '../components/landing/TimelineStep'

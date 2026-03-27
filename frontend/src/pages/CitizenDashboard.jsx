@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API instead
-// import { collection, query, where, onSnapshot } from 'firebase/firestore'
-// import { signOut } from 'firebase/auth'
-// import { auth, db } from '../firebase'
-import { getComplaints } from '../api/complaintService'
+import { collection, query, where, onSnapshot } from '../localDb'
+import { signOut, auth, db } from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import UploadForm from '../components/UploadForm'
 import ComplaintCard from '../components/ComplaintCard'

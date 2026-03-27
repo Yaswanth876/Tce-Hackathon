@@ -6,10 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { HiCheckCircle } from 'react-icons/hi2'
-// MIGRATED: Use MongoDB API
-// import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
-// import { db } from '../firebase'
-import { getComplaints } from '../api/complaintService'
+import { collection, getDocs, db } from '../localDb'
 import Button from '../components/Button'
 
 function ReportMetric({ label, value, unit = '', highlight = false }) {

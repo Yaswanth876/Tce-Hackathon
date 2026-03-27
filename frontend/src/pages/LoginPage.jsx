@@ -8,13 +8,17 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-// MIGRATED: Use MongoDB API instead
-// import {
-//   signInWithEmailAndPassword,
-//   signInWithPopup,
-// } from 'firebase/auth'
-// import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-// import { auth, db, googleProvider } from '../firebase'
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  auth,
+  db,
+  googleProvider,
+} from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/Button'
 import { HiExclamationTriangle } from 'react-icons/hi2'

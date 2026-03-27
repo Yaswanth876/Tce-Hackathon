@@ -12,8 +12,7 @@
 // ---------------------------------------------------------------
 
 import { useState, useRef, useCallback } from 'react'
-import { createComplaint } from '../api/complaintService'
-import { API_BASE_URL } from '../config'
+import { db, collection, addDoc, serverTimestamp } from '../localDb'
 import { HiExclamationTriangle } from 'react-icons/hi2'
 
 // ── Constants ──────────────────────────────────────────────────
@@ -144,23 +143,36 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
             setUploadProgress(50)
             setUploadStatus('saving')
 
-            const response = await createComplaint({
+            const mockAiAnalysis = {
+                severity_score: Math.floor(Math.random() * 50) + 50, // 50-99
+                waste_type: ['Plastic', 'Organic', 'Electronic', 'Mixed'][Math.floor(Math.random() * 4)],
+                urgency_level: ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
+            }
+
+            const reportData = {
                 title: 'Image Report',
                 description: 'Image-based complaint report',
-                imageUrl: preview,
+                category: 'other',
+                severity: 'medium',
                 location: {
                     lat: coords.latitude,
                     lng: coords.longitude,
-                    address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
                 },
-                severity: 'medium',
-                category: 'other',
-            })
+                address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
+                photo: preview,
+                image_url: preview, // keeping for backward compatibility in components
+                status: 'pending',
+                created_at: serverTimestamp(),
+                created_by: createdBy, // from props
+                ai_analysis: mockAiAnalysis,
+            }
+
+            const response = await addDoc(collection(db, 'reports'), reportData)
 
             setUploadProgress(100)
-            setCreatedId(response.data._id)
+            setCreatedId(response.id)
             setUploadStatus('done')
-            onSuccess?.({ complaintId: response.data._id, coords })
+            onSuccess?.({ complaintId: response.id, coords })
 
         } catch (err) {
             console.error('[UploadForm] submission error:', err)
@@ -227,7 +239,7 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
                         </div>
 
                         <div className="gov-alert-success w-full text-left text-sm">
-                            ✅ Report saved. API endpoint: {API_BASE_URL}/complaints/{createdId}
+                            ✅ Report saved locally.
                         </div>
 
                         <button onClick={handleReset} className="btn-gov">

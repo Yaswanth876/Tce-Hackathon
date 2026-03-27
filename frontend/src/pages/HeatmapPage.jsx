@@ -6,9 +6,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { HiMap, HiMapPin, HiChartBar, HiCheckCircle, HiExclamationTriangle } from 'react-icons/hi2'
-// MIGRATED: Use MongoDB API instead
-// import { db } from '../firebase'
-import { getComplaints } from '../api/complaintService'
 import { collection, onSnapshot, query, db } from '../localDb'
 import { MAPS_API_KEY, MAPS_CONFIGURED } from '../config'
 

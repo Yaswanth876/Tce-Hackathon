@@ -19,8 +19,7 @@ import {
   onSnapshot,
   db,
 } from '../localDb'
-// MIGRATED: Use MongoDB API
-// import { db } from '../firebase'
+
 import { useAuth } from '../context/AuthContext'
 import {
   HiTrophy, HiStar, HiSparkles, HiMapPin,
