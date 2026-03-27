@@ -12,8 +12,7 @@
 // ---------------------------------------------------------------
 
 import { useState, useRef, useCallback } from 'react'
-import { createComplaint } from '../api/complaintService'
-import { API_BASE_URL } from '../config'
+import { db, collection, addDoc, serverTimestamp } from '../localDb'
 import { HiExclamationTriangle } from 'react-icons/hi2'
 
 // ── Constants ──────────────────────────────────────────────────
@@ -146,19 +145,42 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
             setUploadProgress(50)
             setUploadStatus('saving')
 
-            const response = await createComplaint({
+            const mockAiAnalysis = {
+                severity_score: Math.floor(Math.random() * 50) + 50, // 50-99
+                waste_type: ['Plastic', 'Organic', 'Electronic', 'Mixed'][Math.floor(Math.random() * 4)],
+                urgency_level: ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
+            }
+
+            const reportData = {
                 title: 'Image Report',
                 description: 'Image-based complaint report',
+<<<<<<< HEAD
                 imageFile: imageFile, // Send the actual file for backend processing
+=======
+                category: 'other',
+                severity: 'medium',
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
                 location: {
                     lat: coords.latitude,
                     lng: coords.longitude,
-                    address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
                 },
+<<<<<<< HEAD
                 severity: 5,
                 category: 'mixed',
                 createdBy: createdBy || 'citizen',
             })
+=======
+                address: `Lat ${coords.latitude.toFixed(4)}, Lng ${coords.longitude.toFixed(4)}`,
+                photo: preview,
+                image_url: preview, // keeping for backward compatibility in components
+                status: 'pending',
+                created_at: serverTimestamp(),
+                created_by: createdBy, // from props
+                ai_analysis: mockAiAnalysis,
+            }
+
+            const response = await addDoc(collection(db, 'reports'), reportData)
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 
             const complaint = response?.data?.complaint
                 ?? response?.data?.data
@@ -167,10 +189,16 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
             const ai = complaint?.ai_analysis ?? response?.data?.ai_analysis ?? null
 
             setUploadProgress(100)
+<<<<<<< HEAD
             setCreatedId(complaint?._id ?? complaint?.id ?? response?.data?._id ?? null)
             setAnalysisResult(ai)
             setUploadStatus('done')
             onSuccess?.({ complaintId: complaint?._id ?? complaint?.id ?? response?.data?._id, coords, aiAnalysis: ai })
+=======
+            setCreatedId(response.id)
+            setUploadStatus('done')
+            onSuccess?.({ complaintId: response.id, coords })
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 
         } catch (err) {
             console.error('[UploadForm] submission error:', err)
@@ -195,6 +223,64 @@ export default function UploadForm({ onSuccess, createdBy = null }) {
 
     const isUploading = uploadStatus !== 'idle' && uploadStatus !== 'done' && uploadStatus !== 'error'
 
+<<<<<<< HEAD
+=======
+    // ── Success screen ─────────────────────────────────────────────
+    if (uploadStatus === 'done') {
+        return (
+            <div className="max-w-xl mx-auto px-4 sm:px-6 py-10">
+                <div className="gov-card overflow-hidden">
+                    <div className="section-header">Complaint Submitted — Acknowledgement</div>
+                    <div className="p-8 flex flex-col items-center text-center gap-6">
+
+                        <div className="w-20 h-20 rounded-full bg-[#F0FDF4] border-4 border-[var(--color-tri-green)] flex items-center justify-center">
+                            <svg className="w-10 h-10 text-[var(--color-tri-green)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+
+                        <div>
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--color-gov-900)' }}>
+                                Complaint Registered Successfully
+                            </h2>
+                            <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
+                                Your complaint has been saved to MongoDB database.
+                            </p>
+                        </div>
+
+                        {preview && (
+                            <img src={preview} alt="Uploaded" className="w-full max-h-48 object-cover rounded border border-[var(--color-border)]" />
+                        )}
+
+                        <div className="bg-[var(--color-gov-50)] border border-[var(--color-gov-100)] rounded-md px-6 py-4 w-full text-left space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Complaint ID</span>
+                                <span className="font-mono text-xs break-all" style={{ color: 'var(--color-gov-800)' }}>{createdId}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Latitude</span>
+                                <span className="font-mono" style={{ color: 'var(--color-gov-800)' }}>{coords?.latitude?.toFixed(6)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span style={{ color: 'var(--color-muted)' }} className="font-medium">Longitude</span>
+                                <span className="font-mono" style={{ color: 'var(--color-gov-800)' }}>{coords?.longitude?.toFixed(6)}</span>
+                            </div>
+                        </div>
+
+                        <div className="gov-alert-success w-full text-left text-sm">
+                            ✅ Report saved locally.
+                        </div>
+
+                        <button onClick={handleReset} className="btn-gov">
+                            Submit Another Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
     // ── Upload form ────────────────────────────────────────────────
     return (
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">

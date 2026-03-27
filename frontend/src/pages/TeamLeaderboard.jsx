@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getComplaints } from '../api/complaintService'
+import { db, collection, getDocs } from '../localDb'
 import { useAuth } from '../context/AuthContext'
 
 // ── Constants ─────────────────────────────────────────────────
@@ -235,7 +235,8 @@ export default function TeamLeaderboard() {
     let alive = true
     ;(async () => {
       try {
-        const complaints = await getComplaints()
+        const snap = await getDocs(collection(db, 'reports'))
+        const complaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         if (!alive) return
 
         const teamMap = new Map()

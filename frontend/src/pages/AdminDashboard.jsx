@@ -30,7 +30,11 @@ import {
   serverTimestamp,
   addDoc,
   getDocs,
+<<<<<<< HEAD
   writeBatch,
+=======
+  writeBatch
+>>>>>>> 3cf3e3436989c3f348a1475a2bde189aefc35263
 } from '../localDb'
 import { useAuth } from '../context/AuthContext'
 import StatusBadge from '../components/StatusBadge'
